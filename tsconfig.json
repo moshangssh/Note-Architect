@@ -1,0 +1,74 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@core": [
+        "src/core"
+      ],
+      "@core/*": [
+        "src/core/*"
+      ],
+      "@engine": [
+        "src/engine"
+      ],
+      "@engine/*": [
+        "src/engine/*"
+      ],
+      "@presets": [
+        "src/presets"
+      ],
+      "@presets/*": [
+        "src/presets/*"
+      ],
+      "@settings": [
+        "src/settings"
+      ],
+      "@settings/*": [
+        "src/settings/*"
+      ],
+      "@templates": [
+        "src/templates"
+      ],
+      "@templates/*": [
+        "src/templates/*"
+      ],
+      "@types": [
+        "src/types"
+      ],
+      "@types/*": [
+        "src/types/*"
+      ],
+      "@ui": [
+        "src/ui"
+      ],
+      "@ui/*": [
+        "src/ui/*"
+      ],
+      "@utils": [
+        "src/utils"
+      ],
+      "@utils/*": [
+        "src/utils/*"
+      ]
+    },
+    "inlineSourceMap": true,
+    "inlineSources": true,
+    "module": "ESNext",
+    "target": "ES6",
+    "allowJs": true,
+    "noImplicitAny": true,
+    "moduleResolution": "node",
+    "importHelpers": true,
+    "isolatedModules": true,
+    "strictNullChecks": true,
+    "lib": [
+      "DOM",
+      "ES5",
+      "ES6",
+      "ES7"
+    ]
+  },
+  "include": [
+    "**/*.ts"
+  ]
+}
