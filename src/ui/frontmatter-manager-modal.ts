@@ -1,10 +1,12 @@
 import { App, Modal, MarkdownView } from 'obsidian';
 import type NoteArchitect from '@core/plugin';
 import type { FrontmatterPreset, Template, TemplateInsertionResult, FrontmatterField } from '@types';
-import * as TemplateEngine from '@engine';
+import { prepareTemplateWithUserInput } from '@engine/TemplateEngine';
 import { handleError } from '@core/error';
 import { notifyInfo, notifySuccess, notifyWarning } from '@utils/notify';
 import { normalizeStringArray } from '@utils/data-transformer';
+import { convertFormDataToFrontmatter } from '@utils/frontmatter/convert';
+import { updateNoteFrontmatter } from '@utils/frontmatter-editor';
 import { createMergedPreset } from './frontmatter/preset-field-merger';
 
 export class FrontmatterManagerModal extends Modal {
@@ -498,8 +500,8 @@ export class FrontmatterManagerModal extends Modal {
 		}
 
 		try {
-			const userFrontmatter = TemplateEngine.convertFormDataToFrontmatter(this.mergedPreset, this.formData);
-			const preparation = await TemplateEngine.prepareTemplateWithUserInput(
+			const userFrontmatter = convertFormDataToFrontmatter(this.mergedPreset, this.formData);
+			const preparation = await prepareTemplateWithUserInput(
 				this.app,
 				this.plugin,
 				this.template,
@@ -521,7 +523,7 @@ export class FrontmatterManagerModal extends Modal {
 					templateBodyInserted = true;
 				}
 
-				TemplateEngine.updateNoteFrontmatter(
+				updateNoteFrontmatter(
 					editor,
 					preparation.mergedFrontmatter,
 					preparation.noteMetadata.position,

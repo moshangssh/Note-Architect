@@ -6,6 +6,7 @@ const mockEmpty = jest.fn();
 const mockAddClass = jest.fn();
 const mockCreateEl = jest.fn();
 const mockCreateDiv = jest.fn();
+const mockToggleClass = jest.fn();
 
 // Setup Element prototype mocks before each test
 beforeAll(() => {
@@ -28,15 +29,15 @@ beforeAll(() => {
 		value: mockCreateDiv.mockReturnThis(),
 		configurable: true
 	});
+
+	Object.defineProperty(Element.prototype, 'toggleClass', {
+		value: mockToggleClass.mockReturnThis(),
+		configurable: true
+	});
 });
 
 // Create a simple mock container
-const mockContainer = {
-	empty: jest.fn().mockReturnThis(),
-	addClass: jest.fn().mockReturnThis(),
-	createEl: jest.fn().mockReturnThis(),
-	createDiv: jest.fn().mockReturnThis()
-} as any;
+const mockContainer = document.createElement('div');
 
 describe('FieldConfigForm', () => {
 	let mockField: FrontmatterField;

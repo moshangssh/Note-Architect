@@ -3,13 +3,15 @@ import type NoteArchitect from '@core/plugin';
 import { TemplateManager } from '@templates';
 import { TemplateLoadStatus } from '@types';
 import type { Template, TemplateLoadResult } from '@types';
-import * as TemplateEngine from '@engine';
+import { processTemplateContent, parseTemplateContent } from '@engine/TemplateEngine';
 import { FrontmatterManagerModal } from './frontmatter-manager-modal';
 import { DynamicPresetSelectorModal } from './dynamic-preset-selector-modal';
 import { debounce } from '@utils/timing';
 import { notifyError, notifyInfo, notifySuccess, notifyWarning } from '@utils/notify';
 import { handleError } from '@core/error';
 import { collectMatchingPresets, resolvePresetConfigIds } from '@utils/note-architect-config';
+import { mergeFrontmatters } from '@utils/frontmatter/merge';
+import { getNoteMetadata, updateNoteFrontmatter } from '@utils/frontmatter-editor';
 import { TemplateSelectorLayout, type TemplateSelectorLayoutRefs } from './template-selector/template-selector-layout';
 import { TemplateSearchView } from './template-selector/template-search-view';
 import { TemplateListView, type TemplateListStatus } from './template-selector/template-list-view';
@@ -398,7 +400,7 @@ export class TemplateSelectorModal extends Modal {
 		this.renderPreview(template);
 		this.updateTemplateList();
 
-		const templateFM = TemplateEngine.parseTemplateContent(template.content).frontmatter;
+		const templateFM = parseTemplateContent(template.content).frontmatter;
 		const { ids: configIds } = resolvePresetConfigIds(templateFM);
 
 		if (configIds.length > 0) {
@@ -486,13 +488,13 @@ export class TemplateSelectorModal extends Modal {
 			content: processedContent,
 			usedTemplater,
 			error: templaterNotice
-		} = await TemplateEngine.processTemplateContent(this.app, this.plugin, template);
+	} = await processTemplateContent(this.app, this.plugin, template);
 
 		if (templaterNotice) {
 			notifyWarning(`${templaterNotice}，继续尝试 frontmatter 合并`);
 		}
 
-		const { frontmatter: templateFM, body: templateBody } = TemplateEngine.parseTemplateContent(processedContent);
+		const { frontmatter: templateFM, body: templateBody } = parseTemplateContent(processedContent);
 		const hasFrontmatter = Object.keys(templateFM).length > 0;
 
 		if (!hasFrontmatter) {
@@ -506,10 +508,10 @@ export class TemplateSelectorModal extends Modal {
 		}
 
 		try {
-			const { frontmatter: noteFM, position: notePosition } = TemplateEngine.getNoteMetadata(this.app);
-			const mergedFM = TemplateEngine.mergeFrontmatters(noteFM, templateFM);
+			const { frontmatter: noteFM, position: notePosition } = getNoteMetadata(this.app);
+			const mergedFM = mergeFrontmatters(noteFM, templateFM);
 
-			TemplateEngine.updateNoteFrontmatter(editor, mergedFM, notePosition);
+			updateNoteFrontmatter(editor, mergedFM, notePosition);
 
 			if (templateBody.trim()) {
 				editor.replaceSelection(templateBody);

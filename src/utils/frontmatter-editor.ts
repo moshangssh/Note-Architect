@@ -1,136 +1,94 @@
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { App, Editor } from 'obsidian';
+import { stringify as stringifyYaml } from 'yaml';
+import type { NoteMetadata, Pos } from '@types';
+import {
+	parseFrontmatter as parseFrontmatterImpl,
+	composeContent,
+	sanitizeFrontmatter,
+	areFrontmattersEqual,
+	type ParsedFrontmatter,
+} from '@utils/frontmatter/text';
 
-export interface ParsedFrontmatter {
-    frontmatter: Record<string, unknown>;
-    body: string;
-    hasFrontmatter: boolean;
-    newline: string;
-}
+export const parseFrontmatter = parseFrontmatterImpl;
+export { composeContent, sanitizeFrontmatter, areFrontmattersEqual };
+export type { ParsedFrontmatter };
 
 export interface FrontmatterUpdateResult {
-    content: string;
-    frontmatter: Record<string, unknown>;
-    previousFrontmatter: Record<string, unknown>;
-    changed: boolean;
-}
-
-const FRONTMATTER_REGEX = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
-
-export function parseFrontmatter(content: string): ParsedFrontmatter {
-    const newline = content.includes('\r\n') ? '\r\n' : '\n';
-    const match = content.match(FRONTMATTER_REGEX);
-
-    if (!match) {
-        return {
-            frontmatter: {},
-            body: content,
-            hasFrontmatter: false,
-            newline,
-        };
-    }
-
-    const [, frontmatterText] = match;
-    const body = content.slice(match[0].length);
-    const frontmatter = (parseYaml(frontmatterText) ?? {}) as Record<string, unknown>;
-
-    return {
-        frontmatter,
-        body,
-        hasFrontmatter: true,
-        newline,
-    };
+	content: string;
+	frontmatter: Record<string, unknown>;
+	previousFrontmatter: Record<string, unknown>;
+	changed: boolean;
 }
 
 export function updateFrontmatter(
-    content: string,
-    updater: (frontmatter: Record<string, unknown>) => Record<string, unknown>,
-    parsed?: ParsedFrontmatter
+	content: string,
+	updater: (frontmatter: Record<string, unknown>) => Record<string, unknown>,
+	parsed?: ParsedFrontmatter,
 ): FrontmatterUpdateResult {
-    const base = parsed ?? parseFrontmatter(content);
-    const updatedFrontmatter = sanitizeFrontmatter(updater({ ...base.frontmatter }));
-    const changed = !areFrontmattersEqual(updatedFrontmatter, base.frontmatter);
-    const newContent = changed ? composeContent(updatedFrontmatter, base) : content;
+	const base = parsed ?? parseFrontmatter(content);
+	const updatedFrontmatter = sanitizeFrontmatter(updater({ ...base.frontmatter }));
+	const changed = !areFrontmattersEqual(updatedFrontmatter, base.frontmatter);
+	const newContent = changed ? composeContent(updatedFrontmatter, base) : content;
 
-    return {
-        content: newContent,
-        frontmatter: updatedFrontmatter,
-        previousFrontmatter: base.frontmatter,
-        changed,
-    };
+	return {
+		content: newContent,
+		frontmatter: updatedFrontmatter,
+		previousFrontmatter: base.frontmatter,
+		changed,
+	};
 }
 
 export function removeFrontmatterField(
-    content: string,
-    key: string,
-    parsed?: ParsedFrontmatter
+	content: string,
+	key: string,
+	parsed?: ParsedFrontmatter,
 ): FrontmatterUpdateResult {
-    return updateFrontmatter(
-        content,
-        (frontmatter) => {
-            const next = { ...frontmatter };
-            delete next[key];
-            return next;
-        },
-        parsed
-    );
+	return updateFrontmatter(
+		content,
+		(frontmatter) => {
+			const next = { ...frontmatter };
+			delete next[key];
+			return next;
+		},
+		parsed,
+	);
 }
 
-function composeContent(frontmatter: Record<string, unknown>, parsed: ParsedFrontmatter): string {
-    const newline = parsed.newline;
-    const hasFields = Object.keys(frontmatter).length > 0;
+export function getNoteMetadata(app: App): NoteMetadata {
+	const activeFile = app.workspace.getActiveFile();
+	if (!activeFile) {
+		return { frontmatter: {}, position: null };
+	}
 
-    if (!hasFields) {
-        if (!parsed.hasFrontmatter) {
-            return parsed.body;
-        }
-        if (parsed.body.startsWith(newline)) {
-            return parsed.body.slice(newline.length);
-        }
-        return parsed.body;
-    }
+	const fileCache = app.metadataCache.getFileCache(activeFile);
+	if (!fileCache || !fileCache.frontmatter) {
+		return { frontmatter: {}, position: null };
+	}
 
-    const yamlText = stringifyYaml(frontmatter, {
-        indent: 2,
-        lineWidth: 0,
-        aliasDuplicateObjects: false,
-    });
-    const normalizedYaml = yamlText.endsWith('\n') ? yamlText : `${yamlText}\n`;
-    const header = `---${newline}${normalizedYaml}---${newline}`;
-
-    let bodySection = parsed.body;
-    if (bodySection.length > 0 && !bodySection.startsWith(newline)) {
-        bodySection = `${newline}${bodySection}`;
-    }
-
-    return `${header}${bodySection}`;
+	return {
+		frontmatter: fileCache.frontmatter || {},
+		position: (fileCache.frontmatterPosition as Pos) ?? null,
+	};
 }
 
-function sanitizeFrontmatter(frontmatter: Record<string, unknown> | null | undefined): Record<string, unknown> {
-    if (!frontmatter) {
-        return {};
-    }
+export function updateNoteFrontmatter(editor: Editor, newFrontmatter: Record<string, unknown>, position: Pos | null): void {
+	try {
+		const newYamlString = stringifyYaml(newFrontmatter, {
+			indent: 2,
+			lineWidth: 0,
+			aliasDuplicateObjects: false,
+		});
 
-    const sanitized: Record<string, unknown> = {};
-
-    for (const [key, value] of Object.entries(frontmatter)) {
-        if (value !== undefined) {
-            sanitized[key] = value;
-        }
-    }
-
-    return sanitized;
-}
-
-const YAML_COMPARE_OPTIONS = {
-    indent: 2,
-    lineWidth: 0,
-    aliasDuplicateObjects: false,
-    sortMapEntries: true,
-} as const;
-
-function areFrontmattersEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
-    // 统一使用 YAML 序列化并排序键值，避免手写的深度比较遗漏类型细节
-    const left = stringifyYaml(a, YAML_COMPARE_OPTIONS).trimEnd();
-    const right = stringifyYaml(b, YAML_COMPARE_OPTIONS).trimEnd();
-    return left === right;
+		if (position && position.start && position.end) {
+			const startPos = { line: position.start.line, ch: 0 };
+			const endPos = { line: position.end.line + 1, ch: 0 };
+			editor.replaceRange(`---\n${newYamlString}---\n\n`, startPos, endPos);
+		} else {
+			const startPos = { line: 0, ch: 0 };
+			editor.replaceRange(`---\n${newYamlString}---\n\n`, startPos);
+		}
+	} catch (error) {
+		console.error('Note Architect: 更新 frontmatter 失败', error);
+		throw error;
+	}
 }

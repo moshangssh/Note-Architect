@@ -5,6 +5,7 @@ import type { Template, TemplateLoadResult } from "@types";
 import type { SettingsManager } from "@settings";
 import { notifyError, notifySuccess, notifyWarning } from "@utils/notify";
 import { normalizePath } from "@utils/path";
+import { safeGetFolder } from "@utils/vault";
 import { debounce } from "@utils/timing";
 
 /**
@@ -36,13 +37,7 @@ export class TemplateManager {
 			return false;
 		}
 
-		try {
-			const normalizedPath = normalizePath(path);
-			const folder = this.app.vault.getAbstractFileByPath(normalizedPath);
-			return folder !== null && "children" in folder;
-		} catch {
-			return false;
-		}
+		return safeGetFolder(this.app, path) !== null;
 	}
 
 	/**
@@ -81,9 +76,8 @@ export class TemplateManager {
 				return this.loadResult;
 			}
 
-			const normalizedPath = normalizePath(folderPath);
-			const folder = this.app.vault.getAbstractFileByPath(normalizedPath);
-			if (!(folder instanceof TFolder)) {
+			const folderResult = safeGetFolder(this.app, folderPath);
+			if (!folderResult) {
 				this.loadResult = {
 					status: TemplateLoadStatus.ERROR,
 					count: 0,
@@ -92,9 +86,9 @@ export class TemplateManager {
 				console.warn(`Note Architect: 路径 "${folderPath}" 无法访问有效文件夹`);
 				return this.loadResult;
 			}
-			this.watchedFolderPath = normalizedPath;
+			this.watchedFolderPath = folderResult.normalizedPath;
 
-			const templateFiles = this.collectTemplateFiles(folder);
+			const templateFiles = this.collectTemplateFiles(folderResult.folder);
 
 			this.templates = [];
 			let errorCount = 0;
@@ -251,7 +245,7 @@ export class TemplateManager {
 			// [神谕]: 确保新"文件"是一个文件夹
 			if (file instanceof TFolder) {
 				// [神谕]: 它被移动了! 立即更新我们的"神经索"到新路径
-				this.watchedFolderPath = file.path;
+				this.watchedFolderPath = normalizePath(file.path);
 
 				// [神谕]: 重新扫描新家, 看看有什么新食物
 				this.scheduleReload();

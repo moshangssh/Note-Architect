@@ -6,6 +6,7 @@ import type {
 	FrontmatterPreset,
 } from '@types';
 import { normalizeStringArray } from '@utils/data-transformer';
+import { generateUniquePresetId as generateUniquePresetIdUtil } from '@utils/preset-id';
 
 export type PresetImportStrategy = 'merge' | 'replace';
 
@@ -79,79 +80,11 @@ export class PresetManager {
 	}
 
 	generateUniquePresetId(name: string): string {
-		const baseId = this.buildBasePresetId(name);
-
-		if (this.isPresetIdFormatValid(baseId) && !this.getPresetById(baseId)) {
-			return baseId;
-		}
-
-		let suffix = 2;
-		const normalizedBase = baseId;
-
-		while (suffix < 10000) {
-			const suffixText = `-${suffix}`;
-			const availableLength = 50 - suffixText.length;
-			let truncatedBase = normalizedBase.slice(0, availableLength).replace(/-+$/g, '');
-
-			if (!truncatedBase) {
-				truncatedBase = 'preset';
-			}
-
-			const candidate = `${truncatedBase}${suffixText}`;
-
-			if (this.isPresetIdFormatValid(candidate) && !this.getPresetById(candidate)) {
-				return candidate;
-			}
-
-			suffix++;
-		}
-
-		const timestampId = `preset-${Date.now()}`;
-		return this.isPresetIdFormatValid(timestampId) && !this.getPresetById(timestampId)
-			? timestampId.slice(0, 50)
-			: `preset-${Date.now().toString(36)}`.slice(0, 50);
-	}
-
-	private buildBasePresetId(name: string): string {
-		const trimmedName = name.trim();
-		if (!trimmedName) {
-			return 'preset';
-		}
-
-		const normalized = trimmedName
-			.normalize('NFKD')
-			.replace(/[\u0300-\u036f]/g, '');
-		let slug = normalized
-			.toLowerCase()
-			.replace(/[^a-z0-9]+/g, '-')
-			.replace(/-+/g, '-')
-			.replace(/^-+|-+$/g, '');
-
-		if (slug && !/^[a-z]/.test(slug)) {
-			slug = `preset-${slug}`;
-		}
-
-		if (!slug) {
-			slug = `preset-${this.computeNameHash(trimmedName)}`;
-		}
-
-		slug = slug.slice(0, 50).replace(/-+$/g, '');
-
-		if (slug.length < 2) {
-			slug = `preset-${this.computeNameHash(trimmedName)}`;
-		}
-
-		return slug.slice(0, 50) || 'preset';
-	}
-
-	private computeNameHash(value: string): string {
-		let hash = 0;
-		for (const char of value) {
-			hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-		}
-
-		const base36 = hash.toString(36);
-		return base36.padStart(6, '0').slice(0, 10);
+		return generateUniquePresetIdUtil(name, {
+			existingIds: this.presets.map(preset => preset.id),
+			isValidId: (candidate) => this.isPresetIdFormatValid(candidate),
+			isIdAvailable: (candidate) => !this.getPresetById(candidate),
+		});
 	}
 
 	private isPresetIdFormatValid(id: string): boolean {
