@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-这是一个名为 `Note Architect`（插件 ID `fast-templater`）的 Obsidian 可视化模板插件，用于帮助用户通过可视化界面插入模板片段。插件基于 TypeScript 开发，使用 Obsidian API，当前处于开发阶段。
+这是一个名为 `Note Architect`（插件 ID `note-architect`）的 Obsidian 可视化模板插件，用于帮助用户通过可视化界面插入模板片段。插件基于 TypeScript 开发，使用 Obsidian API，当前处于开发阶段。
 
 **核心功能规划**（基于 `docs/prd.md`）：
 - 可视化模板选择界面（模态窗口）
@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 重要注意事项
 
 ### 插件 ID
-- 当前 `manifest.json` 中的插件 ID 为 `fast-templater`，保持与仓库目录一致
+- 当前 `manifest.json` 中的插件 ID 为 `note-architect`，保持与仓库目录一致
 - 手动安装路径：`<Vault>/.obsidian/plugins/fast-templater/`
 
 ### 构建产物管理
@@ -69,7 +69,7 @@ eslint ./src/
 
 ### 当前结构
 - `main.ts` - 插件主入口，包含插件生命周期管理和基础功能演示
-- `manifest.json` - 插件元数据，插件 ID 为 `fast-templater`
+- `manifest.json` - 插件元数据，插件 ID 为 `note-architect`
 - `esbuild.config.mjs` - 构建配置，使用 esbuild 打包 TypeScript 代码
 - `package.json` - 项目依赖和脚本配置
 - `tsconfig.json` - TypeScript 编译配置
@@ -158,3 +158,174 @@ eslint ./src/
 - **命令不显示**: 验证 `addCommand` 在 `onload` 后执行，ID 唯一
 - **设置不保存**: 确保正确使用 `loadData`/`saveData` 并重新渲染 UI
 - **移动端问题**: 检查是否使用了桌面专属 API，调整 `isDesktopOnly` 设置
+
+## 开发规范
+
+### 🛠️ 工具使用指南
+
+#### 1. Sequential Thinking - 结构化思维
+
+**用途**：复杂问题分解、多步规划、方案评估
+
+**触发条件**
+
+- 分解任务为多个步骤
+- 生成执行计划或决策树
+- 评估多个方案优劣
+
+**规范**
+
+- 步骤数：6-10 步
+- 每步：一句话 + 可选依赖
+- 输出：可执行计划，不暴露中间推理
+
+**降级**：本地简化为 3-5 步核心流程
+
+---
+
+#### 2. Context7 - 技术文档聚合
+
+**用途**：SDK/API/框架官方文档查询
+
+**触发条件**
+
+- 查询特定库的 API 用法
+- 获取参数示例、配置说明
+- 解决版本迁移问题
+
+**流程**
+`resolve-library-id → get-library-docs → 抽取关键段落`
+
+**关键参数**
+
+- `tokens`：默认 8000，按需下调
+- `topic`：聚焦关键词（如 hooks、routing、auth）
+
+**输出规范**
+
+- 标注库 ID / 版本
+- 精炼答案 + 引用链接
+- 给出段落定位（标题/路径）
+
+**降级**：exa的`get_code_context_exa`
+
+------
+
+#### 3. Exa - Web 搜索
+
+**用途**：最新网页信息、官方链接、新闻公告
+
+**触发条件**
+
+- 需要最新时事、公告、安全漏洞
+- 查找官方网站入口
+- 验证外部信息来源
+
+**关键参数**
+
+- 关键词：≤ 12 个
+- `web_search_exa`：moderate
+
+**输出规范**
+
+- 标题、简述、URL、抓取时间
+- 过滤内容农场、异常站点
+- 按相关度与时效排序
+
+**降级**：用户候选源 / 本地保守答案
+
+------
+
+#### 4. mcp-deepwiki - 深度知识聚合
+
+**用途**：深度文档语义检索、知识聚合、多源摘要
+
+**触发条件**
+
+- 技术概念解释、标准对比
+- 算法原理说明
+- 需要整合多源官方资料
+
+**关键参数**
+
+- `topic`：技术主题或概念（如 "adaptive servo control"）
+- `depth`：1-3，控制语义层次
+
+**输出规范**
+
+- 返回标题、关键要点、引用来源与时间戳
+- 结构化知识节点与关系摘要
+- 避免输出完整文档或论文原文
+
+**降级**：检索无结果 → Context7 → Exa
+
+------
+
+#### 5. Serena - 代码语义检索
+
+**用途**：符号级检索、引用分析、代码重构
+
+**触发条件**
+
+- 按符号或语义查找代码
+- 跨文件引用分析
+- 批量重构迁移
+
+**常用工具**
+
+- 检索：`find_symbol`、`find_referencing_symbols`、`get_symbols_overview`
+- 编辑：`insert_before_symbol`、`insert_after_symbol`、`replace_symbol_body`
+- 辅助：`search_for_pattern`、`find_file`、`read_file`
+
+**策略**
+
+- 单轮单符号，避免批量误改
+- 上下文验证，确认影响范围
+- 输出变更日志：文件路径 + 行号 + 说明
+
+**降级**：文本模式搜索（grep/ripgrep）
+
+### 🔧 命令执行标准
+
+**路径处理：**
+
+- 始终使用双引号包裹文件路径
+- 优先使用正斜杠 `/` 作为路径分隔符
+- 确保跨平台兼容性
+
+**工具优先级：**
+
+1. `rg` (ripgrep) > `grep` 用于内容搜索
+2. 专用工具 (Read/Write/Edit) > 系统命令
+3. 批量工具调用提高效率
+
+---
+
+### ✅ 关键检查点
+
+#### 🚀 任务开始
+
+- [ ] 调用`Serena`的`read_memory`，回显关键约束(例如代码规范、特定函数的实现要求）
+- [ ] 根据任务特征选择适配策略
+- [ ] 确认工具可用性和降级方案
+
+#### 💻 编码前
+
+- [ ] 完成 `Sequential-Thinking` 分析
+- [ ] 使用`Serena`等工具理解现有代码
+- [ ] 制定实施计划和质量标准
+
+#### 🔍 实施中
+
+- [ ] 遵循选定的质量标准
+- [ ] 记录重要决策和变更理由
+- [ ] 及时处理异常和边界情况
+- [ ] 若有代码重构，优先使用`Serena`的`rename_symbol`等自带工具
+
+#### ✨ 完成后
+
+- [ ] 验证功能正确性和代码质量
+- [ ] 更新相关测试和文档
+- [ ] 总结经验、本次任务关键约束、最佳实践等重要信息，调用`Serena`的`write_memory` 写入。
+
+---
