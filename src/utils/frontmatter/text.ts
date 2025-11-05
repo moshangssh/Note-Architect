@@ -1,0 +1,94 @@
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+
+export interface ParsedFrontmatter {
+	frontmatter: Record<string, unknown>;
+	body: string;
+	hasFrontmatter: boolean;
+	newline: string;
+}
+
+const FRONTMATTER_REGEX = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
+
+export function parseFrontmatter(content: string): ParsedFrontmatter {
+	const newline = content.includes('\r\n') ? '\r\n' : '\n';
+	const match = content.match(FRONTMATTER_REGEX);
+
+	if (!match) {
+		return {
+			frontmatter: {},
+			body: content,
+			hasFrontmatter: false,
+			newline,
+		};
+	}
+
+	const [, frontmatterText] = match;
+	const body = content.slice(match[0].length);
+	const frontmatter = (parseYaml(frontmatterText) ?? {}) as Record<string, unknown>;
+
+	return {
+		frontmatter,
+		body,
+		hasFrontmatter: true,
+		newline,
+	};
+}
+
+export function composeContent(frontmatter: Record<string, unknown>, parsed: ParsedFrontmatter): string {
+	const newline = parsed.newline;
+	const hasFields = Object.keys(frontmatter).length > 0;
+
+	if (!hasFields) {
+		if (!parsed.hasFrontmatter) {
+			return parsed.body;
+		}
+		if (parsed.body.startsWith(newline)) {
+			return parsed.body.slice(newline.length);
+		}
+		return parsed.body;
+	}
+
+	const yamlText = stringifyYaml(frontmatter, {
+		indent: 2,
+		lineWidth: 0,
+		aliasDuplicateObjects: false,
+	});
+	const normalizedYaml = yamlText.endsWith('\n') ? yamlText : `${yamlText}\n`;
+	const header = `---${newline}${normalizedYaml}---${newline}`;
+
+	let bodySection = parsed.body;
+	if (bodySection.length > 0 && !bodySection.startsWith(newline)) {
+		bodySection = `${newline}${bodySection}`;
+	}
+
+	return `${header}${bodySection}`;
+}
+
+export function sanitizeFrontmatter(frontmatter: Record<string, unknown> | null | undefined): Record<string, unknown> {
+	if (!frontmatter) {
+		return {};
+	}
+
+	const sanitized: Record<string, unknown> = {};
+
+	for (const [key, value] of Object.entries(frontmatter)) {
+		if (value !== undefined) {
+			sanitized[key] = value;
+		}
+	}
+
+	return sanitized;
+}
+
+const YAML_COMPARE_OPTIONS = {
+	indent: 2,
+	lineWidth: 0,
+	aliasDuplicateObjects: false,
+	sortMapEntries: true,
+} as const;
+
+export function areFrontmattersEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+	const left = stringifyYaml(a, YAML_COMPARE_OPTIONS).trimEnd();
+	const right = stringifyYaml(b, YAML_COMPARE_OPTIONS).trimEnd();
+	return left === right;
+}
