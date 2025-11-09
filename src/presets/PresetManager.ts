@@ -6,6 +6,7 @@ import type {
 	FrontmatterPreset,
 } from '@types';
 import { normalizeStringArray } from '@utils/data-transformer';
+import { cloneFrontmatterField } from '@utils/frontmatter/field';
 import { generateUniquePresetId as generateUniquePresetIdUtil } from '@utils/preset-id';
 
 export type PresetImportStrategy = 'merge' | 'replace';
@@ -91,14 +92,6 @@ export class PresetManager {
 		return this.getPresetIdFormatError(id) === null;
 	}
 
-	private cloneField(field: FrontmatterField): FrontmatterField {
-		return {
-			...field,
-			default: Array.isArray(field.default) ? [...field.default] : field.default,
-			...(Array.isArray(field.options) ? { options: [...field.options] } : {}),
-		};
-	}
-
 	private getPresetIdFormatError(id: string): string | null {
 		if (!id) {
 			return '预设ID不能为空';
@@ -169,7 +162,7 @@ export class PresetManager {
 			const clonedPresets = sanitizedPresets.map((preset) => ({
 				id: preset.id,
 				name: preset.name,
-				fields: preset.fields.map((field) => this.cloneField(field)),
+				fields: preset.fields.map((field) => cloneFrontmatterField(field)),
 			}));
 
 			const currentPresets = this.settingsManager.getSettings().frontmatterPresets;
@@ -184,7 +177,7 @@ export class PresetManager {
 			appliedPresets = clonedPresets.map((preset) => ({
 				id: preset.id,
 				name: preset.name,
-				fields: preset.fields.map((field) => this.cloneField(field)),
+				fields: preset.fields.map((field) => cloneFrontmatterField(field)),
 			}));
 		} else {
 			const newlyAdded: FrontmatterPreset[] = [];
@@ -204,7 +197,7 @@ export class PresetManager {
 				const newPreset: FrontmatterPreset = {
 					id: targetId,
 					name: preset.name,
-					fields: preset.fields.map((field) => this.cloneField(field)),
+					fields: preset.fields.map((field) => cloneFrontmatterField(field)),
 				};
 
 				await this.settingsManager.addPreset(newPreset, saveOptions);
@@ -213,7 +206,7 @@ export class PresetManager {
 				newlyAdded.push({
 					id: newPreset.id,
 					name: newPreset.name,
-					fields: newPreset.fields.map((field) => this.cloneField(field)),
+					fields: newPreset.fields.map((field) => cloneFrontmatterField(field)),
 				});
 			}
 
@@ -230,11 +223,21 @@ export class PresetManager {
 	validateFormData(
 		preset: FrontmatterPreset,
 		formData: Record<string, unknown>,
-	): { isValid: boolean; errors: string[] } {
+	): { isValid: boolean; errors: string[]; fieldErrors: Record<string, string[]> } {
 		const errors: string[] = [];
+		const fieldErrors: Record<string, string[]> = {};
 
-		preset.fields.forEach((field) => {
+		const appendFieldError = (fieldKey: string, inlineMessage: string, summaryMessage: string): void => {
+			errors.push(summaryMessage);
+			if (!fieldErrors[fieldKey]) {
+				fieldErrors[fieldKey] = [];
+			}
+			fieldErrors[fieldKey].push(inlineMessage);
+		};
+
+		preset.fields.forEach((field, index) => {
 			const value = formData[field.key];
+			const fieldKey = field.key || `__index_${index}`;
 
 			if (field.type === 'date') {
 				if (field.useTemplaterTimestamp) {
@@ -244,7 +247,11 @@ export class PresetManager {
 				if (value && typeof value === 'string' && value.trim() !== '') {
 					const date = new Date(value as string);
 					if (isNaN(date.getTime())) {
-						errors.push(`字段 "${field.label}" 的日期格式无效`);
+						appendFieldError(
+							fieldKey,
+							'请输入有效的日期格式',
+							`字段 "${field.label}" 的日期格式无效`
+						);
 					}
 				}
 			}
@@ -253,6 +260,7 @@ export class PresetManager {
 		return {
 			isValid: errors.length === 0,
 			errors,
+			fieldErrors,
 		};
 	}
 
@@ -327,7 +335,7 @@ export class PresetManager {
 		const newPreset: FrontmatterPreset = {
 			id: presetId,
 			name: trimmedName,
-			fields: payload.fields?.map((field) => this.cloneField(field)) ?? [],
+			fields: payload.fields?.map((field) => cloneFrontmatterField(field)) ?? [],
 		};
 
 		await this.settingsManager.addPreset(newPreset, this.buildSaveOptions(options));
@@ -416,7 +424,7 @@ export class PresetManager {
 	): Promise<FrontmatterPreset> {
 		await this.settingsManager.updatePresetFields(
 			presetId,
-			fields.map((field) => this.cloneField(field)),
+			fields.map((field) => cloneFrontmatterField(field)),
 			this.buildSaveOptions(options),
 		);
 

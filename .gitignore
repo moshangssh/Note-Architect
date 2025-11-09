@@ -22,7 +22,7 @@ data.json
 .DS_Store
 
 .claude
-.bmad-core
+bmad
 
 codebase.xml
 __pycache__

@@ -471,6 +471,399 @@ Note Architect - Obsidian Native Style
 	padding-bottom: 12px;
 }
 
+/* ========================================
+   字段配置 Master-Detail 布局（任务 7）
+   ======================================== */
+.note-architect-field-config-layout {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-height: 0;
+}
+
+.note-architect-field-config-layout__split {
+	display: flex;
+	gap: 20px;
+	flex: 1;
+	min-height: 0;
+}
+
+.note-architect-field-config-layout__master,
+.note-architect-field-config-layout__detail {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.note-architect-field-config-layout__master {
+	flex: 0 0 35%;
+	max-width: 360px;
+	min-width: 260px;
+}
+
+.note-architect-field-config-layout__detail {
+	flex: 1;
+	min-width: 0;
+}
+
+.note-architect-master-list {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	background-color: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-l);
+	box-shadow: var(--shadow-s);
+}
+
+.note-architect-master-list__header,
+.note-architect-master-list__footer {
+	padding: 16px 20px;
+}
+
+.note-architect-master-list__header h3 {
+	margin: 0;
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.note-architect-master-list__items {
+	flex: 1;
+	min-height: 0;
+	padding: 0 20px 12px 20px;
+	overflow-y: auto;
+	position: relative;
+}
+
+.note-architect-master-list__item + .note-architect-master-list__item {
+	margin-top: 8px;
+}
+
+.note-architect-master-list__items--virtualized {
+	display: block;
+}
+
+.note-architect-master-list__virtual-spacer {
+	width: 100%;
+	height: 0;
+	flex-shrink: 0;
+	pointer-events: none;
+}
+
+.note-architect-master-list__virtual-items {
+	display: flex;
+	flex-direction: column;
+}
+
+.note-architect-master-list__items::-webkit-scrollbar {
+	width: 8px;
+}
+
+.note-architect-master-list__items::-webkit-scrollbar-thumb {
+	background: var(--background-modifier-border);
+	border-radius: var(--radius-s);
+}
+
+.note-architect-master-list__items::-webkit-scrollbar-thumb:hover {
+	background: var(--interactive-accent);
+}
+
+.note-architect-master-list__empty {
+	padding: 32px 16px;
+	text-align: center;
+	color: var(--text-muted);
+	font-size: var(--font-ui-medium);
+	background-color: var(--background-secondary-alt);
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: var(--radius-m);
+}
+
+.note-architect-master-list__item {
+	display: flex;
+	align-items: stretch;
+	gap: 12px;
+	padding: 12px 14px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-primary);
+	cursor: pointer;
+	transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease,
+		opacity 160ms ease, transform 160ms ease;
+}
+
+.note-architect-master-list__item:hover {
+	border-color: var(--interactive-accent);
+}
+
+.note-architect-master-list__item:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.note-architect-master-list__item.is-selected {
+	border-color: var(--interactive-accent);
+	background-color: var(--interactive-accent-hover);
+	box-shadow: inset 0 0 0 1px var(--interactive-accent);
+}
+
+.note-architect-master-list__item--dragging {
+	opacity: 0.7;
+}
+
+.note-architect-master-list__item--drag-over-before,
+.note-architect-master-list__item--drag-over-after {
+	border-color: var(--interactive-accent);
+	background-color: var(--interactive-accent-hover);
+}
+
+.note-architect-master-list__item--drag-over-before {
+	box-shadow: 0 -3px 0 var(--interactive-accent);
+	transform: translateY(-6px);
+}
+
+.note-architect-master-list__item--drag-over-after {
+	box-shadow: 0 3px 0 var(--interactive-accent);
+	transform: translateY(6px);
+}
+
+.note-architect-master-list__item--entering {
+	animation: note-architect-master-list-item-enter 180ms ease;
+}
+
+.note-architect-master-list__drag-handle {
+	font-size: 18px;
+	line-height: 1;
+	cursor: grab;
+	user-select: none;
+	color: var(--text-muted);
+	padding: 6px;
+	border-radius: var(--radius-s);
+}
+
+.note-architect-master-list__drag-handle:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-hover);
+}
+
+.note-architect-master-list__drag-handle:active {
+	cursor: grabbing;
+}
+
+.note-architect-master-list__item-content {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.note-architect-master-list__item-title {
+	margin: 0;
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.note-architect-master-list__item-subtitle {
+	margin: 0;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.note-architect-master-list__footer {
+	border-top: 1px solid var(--background-modifier-border);
+	display: flex;
+	justify-content: flex-end;
+}
+
+.note-architect-master-list__add-btn {
+	width: 100%;
+}
+
+.note-architect-detail-panel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	background-color: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-l);
+	box-shadow: var(--shadow-s);
+}
+
+.note-architect-detail-panel__header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 18px 24px 16px 24px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.note-architect-detail-panel__title-group h3 {
+	margin: 0;
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.note-architect-detail-panel__subtitle {
+	color: var(--text-muted);
+	font-size: var(--font-small);
+}
+
+.note-architect-detail-panel__actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.note-architect-detail-panel__back-btn {
+	display: none;
+}
+
+.note-architect-detail-panel__delete-btn {
+	min-width: 0;
+}
+
+.note-architect-detail-panel__body {
+	flex: 1;
+	min-height: 0;
+	padding: 20px 24px 24px 24px;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.note-architect-detail-panel__empty {
+	text-align: center;
+	padding: 48px 24px;
+	color: var(--text-muted);
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary-alt);
+}
+
+.note-architect-detail-panel__body h3 {
+	margin-top: 0;
+}
+
+.note-architect-detail-panel__form-container {
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-l);
+	padding: 16px;
+	box-shadow: var(--shadow-xs);
+}
+
+.note-architect-detail-panel__empty.is-hidden,
+.note-architect-detail-panel__form-container.is-hidden {
+	display: none;
+}
+
+.note-architect-detail-panel__section--fade-in {
+	animation: note-architect-detail-panel-section-fade 200ms ease;
+}
+
+@media (max-width: 640px) {
+	.note-architect-field-config-layout__split {
+		position: relative;
+		overflow: hidden;
+		height: 100%;
+	}
+
+	.note-architect-field-config-layout__master,
+	.note-architect-field-config-layout__detail {
+		flex: none;
+		width: 100%;
+		min-width: 0;
+		max-width: none;
+		height: 100%;
+		transition: transform 200ms ease;
+	}
+
+	.note-architect-field-config-layout__detail {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		transform: translateX(100%);
+		z-index: 2;
+	}
+
+	.note-architect-field-config-layout__master {
+		transform: translateX(0);
+		z-index: 1;
+	}
+
+	.note-architect-field-config-layout.detail-view-active .note-architect-field-config-layout__master {
+		transform: translateX(-100%);
+	}
+
+	.note-architect-field-config-layout.detail-view-active .note-architect-field-config-layout__detail {
+		transform: translateX(0);
+	}
+
+	.note-architect-master-list,
+	.note-architect-detail-panel {
+		height: 100%;
+	}
+
+	.note-architect-detail-panel__back-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+	}
+}
+
+@keyframes note-architect-master-list-item-enter {
+	from {
+		opacity: 0;
+		transform: translateY(6px) scale(0.995);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+@keyframes note-architect-detail-panel-section-fade {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.note-architect-master-list__item,
+	.note-architect-detail-panel__form-container,
+	.note-architect-detail-panel__empty {
+		transition: none !important;
+		animation: none !important;
+	}
+
+	.note-architect-master-list__item--entering,
+	.note-architect-detail-panel__section--fade-in {
+		animation: none !important;
+	}
+
+	.note-architect-master-list__item--drag-over-before,
+	.note-architect-master-list__item--drag-over-after {
+		transform: none !important;
+	}
+}
+
 .note-architect-fields-list {
 	display: flex;
 	flex-direction: column;
@@ -636,6 +1029,10 @@ Note Architect - Obsidian Native Style
 	align-items: center;
 }
 
+.note-architect-field-row--error .note-architect-field-label {
+	color: var(--color-red, #cc3d3d);
+}
+
 .note-architect-field-row--stacked {
 	grid-template-columns: 1fr;
 	align-items: flex-start;
@@ -678,6 +1075,11 @@ Note Architect - Obsidian Native Style
 	background-color: var(--background-modifier-hover);
 }
 
+.note-architect-field-input--error {
+	border-color: var(--color-red, #cc3d3d);
+	box-shadow: 0 0 0 1px rgba(204, 61, 61, 0.3);
+}
+
 .note-architect-field-input:focus,
 .note-architect-preset-name-input:focus {
 	border-color: var(--interactive-accent);
@@ -715,6 +1117,19 @@ Note Architect - Obsidian Native Style
 	border-color: var(--interactive-accent);
 	border-width: 2px;
 	background-color: var(--background-primary);
+}
+
+.note-architect-options-list--error {
+	box-shadow: inset 0 0 0 1px var(--color-red, #cc3d3d);
+	border-radius: var(--radius-s);
+	padding: 4px;
+}
+
+.note-architect-field-error {
+	grid-column: 1 / -1;
+	font-size: 12px;
+	color: var(--color-red, #cc3d3d);
+	margin-top: 4px;
 }
 
 .note-architect-field-select option {
@@ -1080,6 +1495,10 @@ Note Architect - Obsidian Native Style
 	margin-bottom: 0;
 }
 
+.note-architect-form-field--error .note-architect-form-label {
+	color: var(--color-red, #cc3d3d);
+}
+
 /* 表单输入框样式 - 紧凑尺寸 */
 .note-architect-form-input,
 .note-architect-form-select {
@@ -1101,6 +1520,12 @@ Note Architect - Obsidian Native Style
 .note-architect-form-select:hover {
 	border-color: var(--interactive-accent);
 	background-color: var(--background-modifier-hover);
+}
+
+.note-architect-form-input--error,
+.note-architect-form-select.note-architect-form-input--error {
+	border-color: var(--color-red, #cc3d3d);
+	box-shadow: 0 0 0 1px rgba(204, 61, 61, 0.3);
 }
 
 .note-architect-form-input:focus,
@@ -1142,6 +1567,11 @@ Note Architect - Obsidian Native Style
 	border-radius: var(--radius-s);
 }
 
+.note-architect-multi-select-container--error {
+	border-color: var(--color-red, #cc3d3d);
+	box-shadow: 0 0 0 1px rgba(204, 61, 61, 0.2);
+}
+
 .note-architect-checkbox-container {
 	display: flex;
 	align-items: center;
@@ -1161,6 +1591,12 @@ Note Architect - Obsidian Native Style
 	height: 18px;
 	cursor: pointer;
 	accent-color: var(--interactive-accent);
+}
+
+.note-architect-form-error {
+	font-size: 12px;
+	color: var(--color-red, #cc3d3d);
+	margin-top: -2px;
 }
 
 .note-architect-checkbox-label {

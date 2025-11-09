@@ -1,0 +1,1 @@
+2025-12-28：将 PresetManager 与 FieldConfigModal 中重复的 cloneField 逻辑提取为公共工具函数 cloneFrontmatterField，位置 src/utils/frontmatter/field.ts，确保字段默认值与选项数组都被克隆，以避免 UI 与管理逻辑之间的引用副作用。

@@ -4,19 +4,33 @@ import { PresetManager } from '@presets';
 import type { SettingsManager } from '@settings';
 import { validateAndSave } from './ui-utils';
 import { notifyWarning } from '@utils/notify';
-import { FieldItem, type FieldItemConfig } from './field-config/field-item';
-import { FieldConfigForm, type FieldConfigFormConfig } from './field-config/field-config-form';
+import { cloneFrontmatterField } from '@utils/frontmatter/field';
+import { MasterListView } from './field-config/master-list-view';
+import { DetailPanelView } from './field-config/detail-panel-view';
+import { SimpleConfirmModal } from './simple-confirm-modal';
+import type { FieldValidationErrors } from './field-config/validation';
+
+interface FieldValidationResult {
+	isValid: boolean;
+	errors: string[];
+	fieldErrors: Map<number, FieldValidationErrors>;
+}
 
 export class FieldConfigModal extends Modal {
 	private readonly presetManager: PresetManager;
 	private readonly settingsManager: SettingsManager;
 	private preset: FrontmatterPreset;
 	private fields: FrontmatterField[];
+	private selectedFieldIndex: number | null;
 	private readonly onPresetsChanged?: () => void;
-	private draggedIndex: number | null = null;
-	private readonly fieldCollapseStates = new WeakMap<FrontmatterField, boolean>();
-	private readonly fieldItemInstances = new Map<number, FieldItem>();
-	private readonly fieldFormInstances = new Map<number, FieldConfigForm>();
+	private masterListView?: MasterListView;
+	private detailPanelView?: DetailPanelView;
+	private layoutContainer?: HTMLElement;
+	private narrowViewMediaQuery?: MediaQueryList;
+	private mediaQueryListener?: (event: MediaQueryListEvent) => void;
+	private wantsDetailView = false;
+	private fieldValidationState: Map<number, FieldValidationErrors> = new Map();
+	private touchedFieldFlags: boolean[] = [];
 
 	constructor(
 		app: App,
@@ -31,15 +45,9 @@ export class FieldConfigModal extends Modal {
 		this.preset = preset;
 		this.onPresetsChanged = onPresetsChanged;
 		// 创建字段副本以避免直接修改原数据
-		this.fields = preset.fields.map(field => this.cloneField(field));
-	}
-
-	private cloneField(field: FrontmatterField): FrontmatterField {
-		return {
-			...field,
-			default: Array.isArray(field.default) ? [...field.default] : field.default,
-			...(Array.isArray(field.options) ? { options: [...field.options] } : {}),
-		};
+		this.fields = preset.fields.map(field => cloneFrontmatterField(field));
+		this.selectedFieldIndex = this.fields.length > 0 ? 0 : null;
+		this.touchedFieldFlags = new Array(this.fields.length).fill(false);
 	}
 
 	onOpen() {
@@ -47,46 +55,224 @@ export class FieldConfigModal extends Modal {
 
 		// 设置模态窗口大小
 		this.modalEl.style.width = '90vw';
-		this.modalEl.style.maxWidth = '800px';
+		this.modalEl.style.maxWidth = '960px';
 		this.modalEl.style.height = '80vh';
+
+		contentEl.empty();
 
 		// 创建标题
 		contentEl.createEl('h2', { text: `配置预设字段: ${this.preset.name}` });
 
-		// 创建主容器
-		const mainContainer = contentEl.createDiv('note-architect-field-config-container');
+		// 创建主从布局容器
+		const layoutContainer = contentEl.createDiv('note-architect-field-config-layout');
+		const splitContainer = layoutContainer.createDiv('note-architect-field-config-layout__split');
+		const masterContainer = splitContainer.createDiv('note-architect-field-config-layout__master');
+		const detailContainer = splitContainer.createDiv('note-architect-field-config-layout__detail');
+		this.initializeResponsiveLayout(layoutContainer);
 
-		// 创建字段列表容器
-		const fieldsContainer = mainContainer.createDiv('note-architect-fields-list');
-
-		// 渲染字段列表
-		this.renderFieldsList(fieldsContainer);
-
-		// 创建操作按钮容器
-		const actionsContainer = mainContainer.createDiv('note-architect-field-config-actions');
-
-		// 添加字段按钮
-		const addFieldBtn = actionsContainer.createEl('button', {
-			text: '添加字段',
-			cls: 'mod-cta note-architect-field-config-actions__btn'
+		// 初始化视图
+		this.masterListView = new MasterListView({
+			containerEl: masterContainer,
+			onSelect: (index) => this.handleSelectField(index),
+			onAddField: () => this.handleAddField(),
+			onReorder: (fromIndex, targetIndex, isAfter) => this.handleReorderField(fromIndex, targetIndex, isAfter),
 		});
-		addFieldBtn.onclick = () => this.addNewField(fieldsContainer);
-
-		// 按钮分隔
-		actionsContainer.createEl('span', {
-			text: ' | ',
-			cls: 'note-architect-field-config-actions__divider'
+		this.detailPanelView = new DetailPanelView({
+			containerEl: detailContainer,
+			settingsManager: this.settingsManager,
+			onFieldChange: (fieldIndex, updatedField) => this.handleFieldChange(fieldIndex, updatedField),
+			onDeleteField: (fieldIndex) => { void this.handleDeleteField(fieldIndex); },
+			onNavigateBack: () => this.handleNavigateBack(),
 		});
 
-		// 保存按钮
-		const saveBtn = actionsContainer.createEl('button', {
+		this.updateUI();
+
+		// 渲染底部操作区
+		const actionsContainer = contentEl.createDiv('note-architect-field-config-actions');
+		this.renderPrimaryActions(actionsContainer);
+	}
+
+	private updateUI(): void {
+		this.syncSelectedIndex();
+		const field = this.selectedFieldIndex === null ? null : this.fields[this.selectedFieldIndex] ?? null;
+		this.masterListView?.render(this.fields, this.selectedFieldIndex);
+		this.detailPanelView?.render(field, this.selectedFieldIndex);
+		this.syncDetailPanelValidation();
+		this.applyDetailViewState();
+	}
+
+	private syncSelectedIndex(): void {
+		if (this.fields.length === 0) {
+			this.selectedFieldIndex = null;
+			return;
+		}
+		if (this.selectedFieldIndex === null) {
+			return;
+		}
+		if (this.selectedFieldIndex > this.fields.length - 1) {
+			this.selectedFieldIndex = this.fields.length - 1;
+		}
+	}
+
+	private handleSelectField(index: number): void {
+		if (index === this.selectedFieldIndex) {
+			if (this.shouldUseStackedLayout()) {
+				this.setDetailViewActive(true);
+			}
+			return;
+		}
+
+		const nextField = this.fields[index];
+		if (!nextField) {
+			return;
+		}
+
+		this.selectedFieldIndex = index;
+		this.masterListView?.updateSelection(index);
+		this.detailPanelView?.render(nextField, index);
+		this.syncDetailPanelValidation();
+		this.setDetailViewActive(true);
+	}
+
+	private handleAddField(): void {
+		const newField = this.createEmptyField();
+		this.fields = [...this.fields, newField];
+		this.touchedFieldFlags = [...this.touchedFieldFlags, false];
+		this.selectedFieldIndex = this.fields.length - 1;
+		this.updateUI();
+		this.deferUiTask(() => this.detailPanelView?.focusOnFirstInput());
+		this.setDetailViewActive(true);
+	}
+
+	private handleReorderField(fromIndex: number, targetIndex: number, isAfter: boolean): void {
+		if (fromIndex === targetIndex && !isAfter) {
+			return;
+		}
+
+		this.ensureTouchedStateSize();
+		const workingFields = [...this.fields];
+		const [movedField] = workingFields.splice(fromIndex, 1);
+		if (!movedField) {
+			return;
+		}
+
+		let insertIndex = targetIndex + (isAfter ? 1 : 0);
+		if (insertIndex > workingFields.length) {
+			insertIndex = workingFields.length;
+		}
+		if (fromIndex < insertIndex) {
+			insertIndex -= 1;
+		}
+
+		if (insertIndex === fromIndex) {
+			return;
+		}
+
+		workingFields.splice(insertIndex, 0, movedField);
+		const touchedFlags = [...this.touchedFieldFlags];
+		const [movedTouched] = touchedFlags.splice(fromIndex, 1);
+		touchedFlags.splice(insertIndex, 0, movedTouched ?? false);
+
+		const selectedFieldRef = this.selectedFieldIndex !== null ? this.fields[this.selectedFieldIndex] : null;
+
+		this.fields = workingFields;
+		this.touchedFieldFlags = touchedFlags;
+
+		if (selectedFieldRef) {
+			const nextIndex = this.fields.indexOf(selectedFieldRef);
+			this.selectedFieldIndex = nextIndex === -1 ? null : nextIndex;
+		}
+
+		this.updateUI();
+
+		const validation = this.validateFields();
+		this.applyInlineValidation(validation);
+	}
+
+	private handleFieldChange(fieldIndex: number, updatedField: FrontmatterField): void {
+		if (fieldIndex < 0 || fieldIndex > this.fields.length - 1) {
+			return;
+		}
+		const nextFields = [...this.fields];
+		const clonedField = cloneFrontmatterField(updatedField);
+		nextFields[fieldIndex] = clonedField;
+		this.fields = nextFields;
+		this.selectedFieldIndex = fieldIndex;
+		this.masterListView?.updateItemSummary(fieldIndex, clonedField);
+		this.detailPanelView?.updateActiveFieldSummary(clonedField, fieldIndex);
+		this.markFieldTouched(fieldIndex);
+		const validation = this.validateFields();
+		this.applyInlineValidation(validation);
+	}
+
+	private async handleDeleteField(fieldIndex: number): Promise<void> {
+		if (fieldIndex < 0 || fieldIndex > this.fields.length - 1) {
+			return;
+		}
+
+		const field = this.fields[fieldIndex];
+		const fieldLabel = field.label?.trim() || field.key?.trim() || `字段 ${fieldIndex + 1}`;
+		const confirmModal = new SimpleConfirmModal(this.app, {
+			title: '删除字段',
+			message: `确定要删除 "${fieldLabel}" 吗？此操作无法撤销。`,
+			confirmText: '删除字段',
+			cancelText: '取消',
+			confirmClass: 'mod-warning',
+		});
+
+		const confirmed = await confirmModal.openAndWait();
+		if (!confirmed) {
+			return;
+		}
+
+		this.ensureTouchedStateSize();
+		const nextFields = [...this.fields];
+		nextFields.splice(fieldIndex, 1);
+		this.fields = nextFields;
+		this.touchedFieldFlags.splice(fieldIndex, 1);
+		if (this.fields.length === 0) {
+			this.selectedFieldIndex = null;
+		} else {
+			this.selectedFieldIndex = fieldIndex > 0 ? fieldIndex - 1 : 0;
+		}
+		this.updateUI();
+		if (this.selectedFieldIndex === null) {
+			this.setDetailViewActive(false);
+		} else {
+			this.applyDetailViewState();
+		}
+		this.deferUiTask(() => this.masterListView?.focusList(this.selectedFieldIndex));
+
+		const validation = this.validateFields();
+		this.applyInlineValidation(validation);
+	}
+
+	private handleNavigateBack(): void {
+		this.setDetailViewActive(false);
+		this.deferUiTask(() => this.masterListView?.focusList(this.selectedFieldIndex));
+	}
+
+	private createEmptyField(): FrontmatterField {
+		return {
+			key: '',
+			label: '',
+			type: 'text',
+			default: '',
+			description: '',
+			options: [],
+		};
+	}
+
+	private renderPrimaryActions(containerEl: HTMLElement): void {
+		containerEl.empty();
+
+		const saveBtn = containerEl.createEl('button', {
 			text: '保存',
 			cls: 'mod-cta note-architect-field-config-actions__btn'
 		});
 		saveBtn.onclick = () => this.saveAndClose();
 
-		// 取消按钮
-		const cancelBtn = actionsContainer.createEl('button', {
+		const cancelBtn = containerEl.createEl('button', {
 			text: '取消',
 			cls: 'note-architect-field-config-actions__btn'
 		});
@@ -94,239 +280,134 @@ export class FieldConfigModal extends Modal {
 	}
 
 	/**
-	 * 渲染字段列表
-	 */
-	private renderFieldsList(containerEl: HTMLElement): void {
-		containerEl.empty();
-
-		if (this.fields.length === 0) {
-			// 显示空状态
-			const emptyEl = containerEl.createDiv('note-architect-empty-fields');
-			emptyEl.createEl('p', {
-				text: '暂无字段，点击"添加字段"开始创建。',
-				cls: 'setting-item-description'
-			});
-			return;
-		}
-
-		// 渲染每个字段
-		this.fields.forEach((field, index) => {
-			this.renderFieldItem(containerEl, field, index);
-		});
-	}
-
-	/**
-	 * 渲染单个字段项
-	 */
-	private renderFieldItem(containerEl: HTMLElement, field: FrontmatterField, index: number): void {
-		// 创建 FieldItem 配置
-		const config: FieldItemConfig = {
-			field,
-			index,
-			isCollapsed: this.isFieldCollapsed(field),
-			onDelete: (idx) => this.removeField(idx, containerEl),
-			onDragStart: (idx) => this.handleDragStart(idx),
-			onDragEnd: () => this.handleDragEnd(containerEl),
-			onReorder: (fromIndex, targetIndex, isAfter) => {
-				this.handleReorder(fromIndex, targetIndex, isAfter, containerEl);
-			},
-			onToggleCollapse: (f, collapsed) => this.toggleFieldCollapse(f, collapsed),
-			draggedIndex: this.draggedIndex
-		};
-
-		// 创建 FieldItem 实例
-		const fieldItem = new FieldItem(config);
-		fieldItem.render(containerEl);
-
-		// 获取配置容器并填充表单
-		const configContainer = fieldItem.getConfigContainer();
-		const updateSummary = () => fieldItem.updateSummary();
-		this.renderFieldConfig(configContainer, field, index, updateSummary, containerEl);
-
-		// 存储实例
-		this.fieldItemInstances.set(index, fieldItem);
-	}
-
-	/**
-	 * 渲染字段配置表单
-	 */
-	private renderFieldConfig(
-		configContainer: HTMLElement,
-		field: FrontmatterField,
-		index: number,
-		updateSummary: () => void,
-		containerEl: HTMLElement
-	): void {
-		// 创建 FieldConfigForm 配置
-		const fieldFormConfig: FieldConfigFormConfig = {
-			field,
-			fieldIndex: index,
-			onFieldChange: (updatedField, fieldIndex) => {
-				this.updateFieldData(fieldIndex, updatedField);
-				updateSummary();
-			},
-			settingsManager: this.settingsManager
-		};
-
-		// 创建 FieldConfigForm 实例
-		const fieldForm = new FieldConfigForm(fieldFormConfig);
-		fieldForm.render(configContainer);
-
-		// 存储 FieldConfigForm 实例
-		this.fieldFormInstances.set(index, fieldForm);
-	}
-
-/**
-	 * 更新字段数据
-	 */
-	private updateFieldData(fieldIndex: number, field: FrontmatterField): void {
-		if (fieldIndex >= 0 && fieldIndex < this.fields.length) {
-			this.fields[fieldIndex] = field;
-		}
-	}
-
-	/**
-	 * 处理拖拽开始
-	 */
-	private handleDragStart(index: number): void {
-		this.draggedIndex = index;
-	}
-
-	/**
-	 * 处理拖拽结束
-	 */
-	private handleDragEnd(containerEl: HTMLElement): void {
-		this.draggedIndex = null;
-		this.clearDragStyles(containerEl);
-	}
-
-	/**
-	 * 切换字段折叠状态
-	 */
-	private toggleFieldCollapse(field: FrontmatterField, collapsed: boolean): void {
-		this.fieldCollapseStates.set(field, collapsed);
-	}
-
-	/**
-	 * 清理拖拽样式
-	 */
-	private clearDragStyles(containerEl: HTMLElement): void {
-		containerEl.querySelectorAll('.note-architect-field-item').forEach(el => {
-			el.classList.remove(
-				'note-architect-field-item--drag-over-before',
-				'note-architect-field-item--drag-over-after',
-				'note-architect-field-item--dragging'
-			);
-		});
-	}
-
-	/**
-	 * 处理字段重新排序
-	 */
-	private handleReorder(fromIndex: number, targetIndex: number, isAfter: boolean, containerEl: HTMLElement): void {
-		if (fromIndex === targetIndex && !isAfter) {
-			this.clearDragStyles(containerEl);
-			return;
-		}
-
-		const [movedField] = this.fields.splice(fromIndex, 1);
-		let insertIndex = targetIndex;
-
-		if (fromIndex < targetIndex) {
-			insertIndex -= 1;
-		}
-		if (isAfter) {
-			insertIndex += 1;
-		}
-
-		if (insertIndex < 0) {
-			insertIndex = 0;
-		}
-		if (insertIndex > this.fields.length) {
-			insertIndex = this.fields.length;
-		}
-
-		this.fields.splice(insertIndex, 0, movedField);
-		this.draggedIndex = null;
-		this.clearDragStyles(containerEl);
-		this.renderFieldsList(containerEl);
-	}
-
-	/**
-	 * 判断字段是否折叠
-	 */
-	private isFieldCollapsed(field: FrontmatterField): boolean {
-		return this.fieldCollapseStates.get(field) ?? false;
-	}
-
-	/**
-	 * 添加新字段
-	 */
-	private addNewField(containerEl: HTMLElement): void {
-		const newField: FrontmatterField = {
-			key: '',
-			type: 'text',
-			label: '',
-			default: '',
-			options: []
-		};
-		this.fields.push(newField);
-		this.renderFieldsList(containerEl);
-	}
-
-	/**
-	 * 删除字段
-	 */
-	private removeField(index: number, containerEl: HTMLElement): void {
-		const [removedField] = this.fields.splice(index, 1);
-		if (removedField) {
-			this.fieldCollapseStates.delete(removedField);
-		}
-		this.renderFieldsList(containerEl);
-	}
-
-	/**
 	 * 验证字段数据
 	 */
-	private validateFields(): { isValid: boolean; errors: string[] } {
+	private validateFields(): FieldValidationResult {
 		const errors: string[] = [];
+		const fieldErrors = new Map<number, FieldValidationErrors>();
+		const keyUsage = new Map<string, number[]>();
+
+		const ensureFieldEntry = (index: number): FieldValidationErrors => {
+			let entry = fieldErrors.get(index);
+			if (!entry) {
+				entry = {};
+				fieldErrors.set(index, entry);
+			}
+			return entry;
+		};
+
+		const appendFieldError = (
+			index: number,
+			type: keyof FieldValidationErrors,
+			inlineMessage: string,
+			summaryMessage: string,
+		): void => {
+			errors.push(summaryMessage);
+			const entry = ensureFieldEntry(index);
+			const bucket = entry[type] ?? [];
+			bucket.push(inlineMessage);
+			entry[type] = bucket;
+		};
 
 		this.fields.forEach((field, index) => {
 			const fieldNum = index + 1;
+			const trimmedKey = field.key?.trim() ?? '';
+			const trimmedLabel = field.label?.trim() ?? '';
 
-			// 验证必填字段
-			if (!field.key.trim()) {
-				errors.push(`字段 ${fieldNum}: Frontmatter 键名不能为空`);
+			if (trimmedKey) {
+				const usage = keyUsage.get(trimmedKey) ?? [];
+				usage.push(index);
+				keyUsage.set(trimmedKey, usage);
 			}
-			if (!field.label.trim()) {
-				errors.push(`字段 ${fieldNum}: 显示名称不能为空`);
-			}
-			// 默认值现在可以为空，移除验证
 
-			// 验证 key 格式
+			if (!trimmedKey) {
+				const summary = `字段 ${fieldNum}: Frontmatter 键名不能为空`;
+				appendFieldError(index, 'key', 'Frontmatter 键名不能为空', summary);
+			}
+			if (!trimmedLabel) {
+				const summary = `字段 ${fieldNum}: 显示名称不能为空`;
+				appendFieldError(index, 'label', '显示名称不能为空', summary);
+			}
+
 			const keyRegex = /^[a-zA-Z_][a-zA-Z0-9_-]*$/;
-			if (field.key && !keyRegex.test(field.key)) {
-				errors.push(`字段 ${fieldNum}: Frontmatter 键名格式不正确，只能包含字母、数字、下划线和连字符，且必须以字母或下划线开头`);
+			if (trimmedKey && !keyRegex.test(trimmedKey)) {
+				const summary = `字段 ${fieldNum}: Frontmatter 键名格式不正确，只能包含字母、数字、下划线和连字符，且必须以字母或下划线开头`;
+				appendFieldError(
+					index,
+					'key',
+					'键名格式不正确，只能包含字母、数字、下划线、连字符且需以字母或下划线开头',
+					summary
+				);
 			}
 
-			// 验证 select 和 multi-select 类型必须有选项
 			if ((field.type === 'select' || field.type === 'multi-select') &&
 				(!field.options || field.options.length === 0 || field.options.every(opt => !opt.trim()))) {
-				errors.push(`字段 ${fieldNum}: ${field.type === 'select' ? '单选' : '多选'}类型必须至少有一个选项`);
+				const summary = `字段 ${fieldNum}: ${field.type === 'select' ? '单选' : '多选'}类型必须至少有一个选项`;
+				appendFieldError(index, 'options', '至少添加一个有效选项', summary);
 			}
 		});
 
-		// 检查重复的 key
-		const keys = this.fields.map(f => f.key).filter(k => k.trim());
-		const duplicateKeys = keys.filter((key, index) => keys.indexOf(key) !== index);
-		if (duplicateKeys.length > 0) {
-			errors.push(`发现重复的 Frontmatter 键名: ${duplicateKeys.join(', ')}`);
+		const duplicateSummaryKeys: string[] = [];
+		keyUsage.forEach((indexes, key) => {
+			if (indexes.length > 1) {
+				for (let i = 1; i < indexes.length; i++) {
+					duplicateSummaryKeys.push(key);
+				}
+				indexes.forEach((index) => {
+					const entry = ensureFieldEntry(index);
+					entry.key = [...(entry.key ?? []), '该键名与其他字段重复'];
+				});
+			}
+		});
+		if (duplicateSummaryKeys.length > 0) {
+			errors.push(`发现重复的 Frontmatter 键名: ${duplicateSummaryKeys.join(', ')}`);
 		}
 
 		return {
 			isValid: errors.length === 0,
-			errors
+			errors,
+			fieldErrors
 		};
+	}
+
+	private applyInlineValidation(result: FieldValidationResult, options?: { showAll?: boolean }): void {
+		this.fieldValidationState = result.fieldErrors;
+		this.syncDetailPanelValidation(options);
+	}
+
+	private getErrorsForField(index: number | null, options?: { showAll?: boolean }): FieldValidationErrors | null {
+		if (index === null) {
+			return null;
+		}
+		this.ensureTouchedStateSize();
+		const shouldShow = options?.showAll === true || this.touchedFieldFlags[index];
+		if (!shouldShow) {
+			return null;
+		}
+		return this.fieldValidationState.get(index) ?? null;
+	}
+
+	private syncDetailPanelValidation(options?: { showAll?: boolean }): void {
+		const errors = this.getErrorsForField(this.selectedFieldIndex, options);
+		this.detailPanelView?.setValidationErrors(this.selectedFieldIndex, errors);
+	}
+
+	private markFieldTouched(index: number): void {
+		if (index < 0 || index > this.fields.length - 1) {
+			return;
+		}
+		this.ensureTouchedStateSize();
+		this.touchedFieldFlags[index] = true;
+	}
+
+	private markAllFieldsTouched(): void {
+		this.touchedFieldFlags = new Array(this.fields.length).fill(true);
+	}
+
+	private ensureTouchedStateSize(): void {
+		if (this.touchedFieldFlags.length !== this.fields.length) {
+			this.touchedFieldFlags = new Array(this.fields.length).fill(false);
+		}
 	}
 
 	/**
@@ -336,7 +417,9 @@ export class FieldConfigModal extends Modal {
 		// 验证字段数据
 		const validation = this.validateFields();
 		if (!validation.isValid) {
-			notifyWarning(`验证失败:\n${validation.errors.join('\n')}`, { prefix: false });
+			this.markAllFieldsTouched();
+			this.applyInlineValidation(validation, { showAll: true });
+			notifyWarning('验证失败，请根据字段下方的红色提示修正后再尝试保存。', { prefix: false });
 			return;
 		}
 
@@ -347,12 +430,15 @@ export class FieldConfigModal extends Modal {
 			async (filteredFields) => {
 				const updatedPreset = await this.presetManager.updatePresetFields(this.preset.id, filteredFields);
 				this.preset = updatedPreset;
-				this.fields = updatedPreset.fields.map(field => this.cloneField(field));
+				this.fields = updatedPreset.fields.map(field => cloneFrontmatterField(field));
+				this.touchedFieldFlags = new Array(this.fields.length).fill(false);
+				this.fieldValidationState = new Map();
 			},
 			{
 				filterFn: (field) => Boolean(field.key.trim() && field.label.trim()),
 				successMessage: '字段配置已保存',
 				onSuccess: () => {
+					this.detailPanelView?.setValidationErrors(this.selectedFieldIndex, null);
 					this.onPresetsChanged?.();
 					this.close();
 				}
@@ -362,6 +448,82 @@ export class FieldConfigModal extends Modal {
 
 	onClose() {
 		const { contentEl } = this;
+		this.cleanupResponsiveLayout();
+		this.masterListView?.destroy();
+		this.detailPanelView?.destroy();
+		this.masterListView = undefined;
+		this.detailPanelView = undefined;
+		this.layoutContainer = undefined;
 		contentEl.empty();
+	}
+
+	private deferUiTask(task: () => void): void {
+		if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+			window.requestAnimationFrame(() => task());
+			return;
+		}
+		task();
+	}
+
+	/**
+	 * 初始化窄视口监听，控制主从视图的切换
+	 */
+	private initializeResponsiveLayout(layoutContainer: HTMLElement): void {
+		this.layoutContainer = layoutContainer;
+		if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+			return;
+		}
+		this.narrowViewMediaQuery = window.matchMedia('(max-width: 640px)');
+		this.mediaQueryListener = () => {
+			this.applyDetailViewState();
+		};
+		if (typeof this.narrowViewMediaQuery.addEventListener === 'function') {
+			this.narrowViewMediaQuery.addEventListener('change', this.mediaQueryListener);
+		} else if (typeof this.narrowViewMediaQuery.addListener === 'function') {
+			this.narrowViewMediaQuery.addListener(this.mediaQueryListener);
+		}
+		this.applyDetailViewState();
+	}
+
+	/**
+	 * 清理窄视口监听，避免模态关闭后泄漏
+	 */
+	private cleanupResponsiveLayout(): void {
+		if (this.narrowViewMediaQuery && this.mediaQueryListener) {
+			if (typeof this.narrowViewMediaQuery.removeEventListener === 'function') {
+				this.narrowViewMediaQuery.removeEventListener('change', this.mediaQueryListener);
+			} else if (typeof this.narrowViewMediaQuery.removeListener === 'function') {
+				this.narrowViewMediaQuery.removeListener(this.mediaQueryListener);
+			}
+		}
+		this.narrowViewMediaQuery = undefined;
+		this.mediaQueryListener = undefined;
+		this.wantsDetailView = false;
+	}
+
+	private shouldUseStackedLayout(): boolean {
+		if (this.narrowViewMediaQuery) {
+			return this.narrowViewMediaQuery.matches;
+		}
+		if (typeof window === 'undefined') {
+			return false;
+		}
+		return window.innerWidth <= 640;
+	}
+
+	private setDetailViewActive(shouldActivate: boolean): void {
+		this.wantsDetailView = shouldActivate && this.selectedFieldIndex !== null;
+		this.applyDetailViewState();
+	}
+
+	private applyDetailViewState(): void {
+		if (!this.layoutContainer) {
+			return;
+		}
+		if (this.selectedFieldIndex === null) {
+			this.wantsDetailView = false;
+		}
+		const shouldShowDetail = this.wantsDetailView && this.shouldUseStackedLayout() && this.selectedFieldIndex !== null;
+		this.layoutContainer.toggleClass('detail-view-active', shouldShowDetail);
 	}
 }

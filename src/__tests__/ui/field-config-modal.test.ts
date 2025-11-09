@@ -1,71 +1,68 @@
-import { App, Modal } from 'obsidian';
+import { App } from 'obsidian';
 import { FieldConfigModal } from '../../ui/field-config-modal';
 import { PresetManager } from '../../presets/PresetManager';
 import { SettingsManager } from '../../settings/SettingsManager';
 import { type FrontmatterPreset, type FrontmatterField } from '../../types/settings';
-import { FieldItem } from '../../ui/field-config/field-item';
-import { FieldConfigForm } from '../../ui/field-config/field-config-form';
+import { MasterListView } from '../../ui/field-config/master-list-view';
+import { DetailPanelView } from '../../ui/field-config/detail-panel-view';
+import { validateAndSave } from '../../ui/ui-utils';
 
-// Mock Obsidian API
-jest.mock('obsidian', () => ({
-	App: jest.fn(),
-	Modal: jest.fn().mockImplementation(function() {
-		this.contentEl = {
+jest.mock('obsidian', () => {
+	const createMockElement = () => {
+		const element: any = {
 			empty: jest.fn(),
+			addClass: jest.fn(),
+			toggleClass: jest.fn(),
+			setAttr: jest.fn(),
 			createEl: jest.fn().mockReturnValue({
 				setText: jest.fn(),
-				addClass: jest.fn()
-			}),
-			createDiv: jest.fn().mockReturnValue({
-				empty: jest.fn(),
-				createEl: jest.fn().mockReturnValue({
-					setText: jest.fn(),
-					addClass: jest.fn()
-				}),
-				createDiv: jest.fn().mockReturnValue({
-					createEl: jest.fn().mockReturnValue({
-						setText: jest.fn(),
-						addClass: jest.fn()
-					}),
-					addClass: jest.fn()
-				}),
-				addClass: jest.fn()
+				addClass: jest.fn(),
+				setAttr: jest.fn()
 			})
 		};
-		this.modalEl = {
-			style: {}
-		};
-		this.close = jest.fn();
-	})
+		element.createDiv = jest.fn().mockImplementation(() => createMockElement());
+		return element;
+	};
+
+	return {
+		App: jest.fn(),
+		Notice: jest.fn(),
+		Modal: jest.fn().mockImplementation(function () {
+			this.contentEl = createMockElement();
+			this.modalEl = { style: {} };
+			this.close = jest.fn();
+		})
+	};
+});
+
+jest.mock('../../ui/field-config/master-list-view', () => ({
+	MasterListView: jest.fn().mockImplementation(() => ({
+		render: jest.fn(),
+		destroy: jest.fn()
+	}))
 }));
 
-// Mock FieldItem and FieldConfigForm
-jest.mock('../../ui/field-config/field-item', () => ({
-	FieldItem: jest.fn().mockImplementation(function(config) {
-		this.config = config;
-		this.render = jest.fn().mockReturnValue({});
-		this.getConfigContainer = jest.fn().mockReturnValue({
-			empty: jest.fn()
-		});
-		this.updateSummary = jest.fn();
-	})
+jest.mock('../../ui/field-config/detail-panel-view', () => ({
+	DetailPanelView: jest.fn().mockImplementation(() => ({
+		render: jest.fn(),
+		destroy: jest.fn(),
+		focusOnFirstInput: jest.fn(),
+		updateActiveFieldSummary: jest.fn(),
+		setValidationErrors: jest.fn()
+	}))
 }));
 
-jest.mock('../../ui/field-config/field-config-form', () => ({
-	FieldConfigForm: jest.fn().mockImplementation(function(config) {
-		this.config = config;
-		this.render = jest.fn();
-	})
-}));
-
-// Mock other dependencies
 jest.mock('../../presets/PresetManager');
 jest.mock('../../settings/SettingsManager');
 jest.mock('../../ui/ui-utils', () => ({
 	validateAndSave: jest.fn()
 }));
 
-describe('FieldConfigModal (重构后)', () => {
+describe('FieldConfigModal - Master/Detail 骨架', () => {
+	const MockedMasterListView = MasterListView as jest.MockedClass<typeof MasterListView>;
+	const MockedDetailPanelView = DetailPanelView as jest.MockedClass<typeof DetailPanelView>;
+	const validateAndSaveMock = validateAndSave as jest.MockedFunction<typeof validateAndSave>;
+
 	let modal: FieldConfigModal;
 	let mockPresetManager: jest.Mocked<PresetManager>;
 	let mockSettingsManager: jest.Mocked<SettingsManager>;
@@ -73,7 +70,8 @@ describe('FieldConfigModal (重构后)', () => {
 	let mockOnPresetsChanged: jest.Mock;
 
 	beforeEach(() => {
-		// 创建 mock 对象
+		jest.clearAllMocks();
+
 		mockPresetManager = {
 			updatePresetFields: jest.fn()
 		} as any;
@@ -98,7 +96,19 @@ describe('FieldConfigModal (重构后)', () => {
 
 		mockOnPresetsChanged = jest.fn();
 
-		// 创建模态框实例
+		MockedMasterListView.mockImplementation(() => ({
+			render: jest.fn(),
+			destroy: jest.fn()
+		} as unknown as MasterListView));
+
+		MockedDetailPanelView.mockImplementation(() => ({
+			render: jest.fn(),
+			destroy: jest.fn(),
+			focusOnFirstInput: jest.fn(),
+			updateActiveFieldSummary: jest.fn(),
+			setValidationErrors: jest.fn()
+		} as unknown as DetailPanelView));
+
 		modal = new FieldConfigModal(
 			{} as App,
 			mockPresetManager,
@@ -108,299 +118,103 @@ describe('FieldConfigModal (重构后)', () => {
 		);
 	});
 
-	describe('容器渲染测试', () => {
-		test('模态框正确初始化字段数据', () => {
+	describe('初始化与 onOpen', () => {
+		test('构造函数正确克隆字段数据', () => {
 			expect(modal['fields']).toHaveLength(1);
-			expect(modal['fields'][0].key).toBe('status');
+			expect(modal['fields'][0]).not.toBe(mockPreset.fields[0]);
 		});
 
-		test('字段列表正确渲染空状态', () => {
-			// 清空字段模拟空状态
-			modal['fields'] = [];
-			const mockContainer = {
-				empty: jest.fn(),
-				createDiv: jest.fn().mockReturnValue({
-					createEl: jest.fn().mockReturnValue({
-						setText: jest.fn()
-					})
-				})
-			} as any;
+		test('onOpen 创建 Master/Detail 视图并渲染骨架', () => {
+			modal.onOpen();
 
-			modal['renderFieldsList'](mockContainer);
-			expect(mockContainer.empty).toHaveBeenCalled();
+			expect(MockedMasterListView).toHaveBeenCalledTimes(1);
+			expect(MockedDetailPanelView).toHaveBeenCalledTimes(1);
+
+			const masterListInstance = MockedMasterListView.mock.results[0]?.value as { render: jest.Mock };
+			const detailPanelInstance = MockedDetailPanelView.mock.results[0]?.value as { render: jest.Mock };
+
+			expect(masterListInstance.render).toHaveBeenCalledWith(modal['fields'], 0);
+			expect(detailPanelInstance.render).toHaveBeenCalledWith(modal['fields'][0], 0);
 		});
 
-		test('字段列表正确渲染字段项', () => {
-			const mockContainer = {
-				empty: jest.fn()
-			} as any;
+		test('onClose 会销毁子视图并清空内容', () => {
+			modal.onOpen();
+			const masterListInstance = MockedMasterListView.mock.results[0]?.value as { destroy: jest.Mock };
+			const detailPanelInstance = MockedDetailPanelView.mock.results[0]?.value as { destroy: jest.Mock };
 
-			modal['renderFieldsList'](mockContainer);
-			expect(mockContainer.empty).toHaveBeenCalled();
-			expect(FieldItem).toHaveBeenCalled();
-		});
-	});
+			modal.onClose();
 
-	describe('FieldItem 集成测试', () => {
-		test('FieldItem 实例正确创建和管理', () => {
-			const mockContainer = {
-				empty: jest.fn()
-			} as any;
-
-			modal['renderFieldsList'](mockContainer);
-
-			// 检查 FieldItem 实例是否被存储
-			expect(modal['fieldItemInstances'].size).toBe(1);
-			expect(FieldItem).toHaveBeenCalledWith(
-				expect.objectContaining({
-					field: expect.any(Object),
-					index: 0,
-					onDelete: expect.any(Function),
-					onDragStart: expect.any(Function),
-					onDragEnd: expect.any(Function),
-					onReorder: expect.any(Function),
-					onToggleCollapse: expect.any(Function)
-				})
-			);
-		});
-
-		test('所有回调函数正确触发', () => {
-			const mockContainer = {
-				empty: jest.fn()
-			} as any;
-
-			modal['renderFieldsList'](mockContainer);
-
-			const fieldItemConfig = (FieldItem as jest.Mock).mock.calls[0][0];
-
-			// 测试删除回调
-			expect(typeof fieldItemConfig.onDelete).toBe('function');
-
-			// 测试拖拽回调
-			expect(typeof fieldItemConfig.onDragStart).toBe('function');
-			expect(typeof fieldItemConfig.onDragEnd).toBe('function');
-			expect(typeof fieldItemConfig.onReorder).toBe('function');
-
-			// 测试折叠回调
-			expect(typeof fieldItemConfig.onToggleCollapse).toBe('function');
-		});
-
-		test('拖拽状态正确传递', () => {
-			const mockContainer = {
-				empty: jest.fn()
-			} as any;
-
-			modal['renderFieldsList'](mockContainer);
-
-			const fieldItemConfig = (FieldItem as jest.Mock).mock.calls[0][0];
-			expect(fieldItemConfig.draggedIndex).toBeNull();
+			expect(masterListInstance.destroy).toHaveBeenCalled();
+			expect(detailPanelInstance.destroy).toHaveBeenCalled();
+			expect((modal.contentEl.empty as jest.Mock)).toHaveBeenCalled();
 		});
 	});
 
-	describe('状态管理测试', () => {
-		test('handleReorder 正确排序 fields 数组', () => {
-			// 添加更多字段
+	describe('验证逻辑', () => {
+		test('validateFields 正确校验必填项', () => {
 			modal['fields'] = [
-				{ key: 'field1', type: 'text', label: 'Field 1', default: '', options: [] },
-				{ key: 'field2', type: 'text', label: 'Field 2', default: '', options: [] },
-				{ key: 'field3', type: 'text', label: 'Field 3', default: '', options: [] }
+				{ key: '', type: 'text', label: '', default: '', options: [] }
 			];
 
-			const mockContainer = {
-				empty: jest.fn(),
-				querySelectorAll: jest.fn().mockReturnValue([])
-			} as any;
-
-			// 测试将第0个字段移动到第2个位置之后
-			modal['handleReorder'](0, 2, true, mockContainer);
-
-			expect(modal['fields'][0].key).toBe('field2');
-			expect(modal['fields'][1].key).toBe('field3');
-			expect(modal['fields'][2].key).toBe('field1');
+			const result = modal['validateFields']();
+			expect(result.isValid).toBe(false);
+			expect(result.errors).toContain('字段 1: Frontmatter 键名不能为空');
+			expect(result.errors).toContain('字段 1: 显示名称不能为空');
+			const inlineErrors = result.fieldErrors.get(0);
+			expect(inlineErrors?.key).toContain('Frontmatter 键名不能为空');
+			expect(inlineErrors?.label).toContain('显示名称不能为空');
 		});
 
-		test('fieldCollapseStates 正确管理', () => {
-			const field = modal['fields'][0];
+		test('validateFields 正确校验 select/multi-select 选项', () => {
+			modal['fields'] = [
+				{ key: 'status', type: 'select', label: 'Status', default: '', options: [] },
+				{ key: 'tags', type: 'multi-select', label: 'Tags', default: [], options: [' '] }
+			];
 
-			// 测试初始状态
-			expect(modal['isFieldCollapsed'](field)).toBe(false);
-
-			// 测试设置折叠状态
-			modal['toggleFieldCollapse'](field, true);
-			expect(modal['isFieldCollapsed'](field)).toBe(true);
+			const result = modal['validateFields']();
+			expect(result.errors).toContain('字段 1: 单选类型必须至少有一个选项');
+			expect(result.errors).toContain('字段 2: 多选类型必须至少有一个选项');
+			expect(result.fieldErrors.get(0)?.options).toContain('至少添加一个有效选项');
+			expect(result.fieldErrors.get(1)?.options).toContain('至少添加一个有效选项');
 		});
 
-		test('updateFieldData 正确同步数据', () => {
-			const updatedField: FrontmatterField = {
-				key: 'updated-key',
-				type: 'select',
-				label: 'Updated Label',
-				default: 'option1',
-				options: ['option1', 'option2']
-			};
+		test('validateFields 能检测重复键名', () => {
+			modal['fields'] = [
+				{ key: 'status', type: 'text', label: 'A', default: '', options: [] },
+				{ key: 'status', type: 'text', label: 'B', default: '', options: [] }
+			];
 
-			modal['updateFieldData'](0, updatedField);
-
-			expect(modal['fields'][0]).toEqual(updatedField);
+			const result = modal['validateFields']();
+			expect(result.errors).toContain('发现重复的 Frontmatter 键名: status');
+			expect(result.fieldErrors.get(0)?.key).toContain('该键名与其他字段重复');
+			expect(result.fieldErrors.get(1)?.key).toContain('该键名与其他字段重复');
 		});
 	});
 
-	describe('数据流测试', () => {
-		test('FieldConfigForm 数据变更正确同步到容器', () => {
-			const mockContainer = {
-				empty: jest.fn()
-			} as any;
-
-			// 重置 FieldConfigForm mock 来捕获新的调用
-			(FieldConfigForm as jest.Mock).mockClear();
-			modal['renderFieldsList'](mockContainer);
-
-			const fieldFormConfig = (FieldConfigForm as jest.Mock).mock.calls[0][0];
-			const updatedField: FrontmatterField = {
-				...modal['fields'][0],
-				label: 'Updated Label'
-			};
-
-			// 触发字段变更
-			fieldFormConfig.onFieldChange(updatedField, 0);
-
-			expect(modal['fields'][0].label).toBe('Updated Label');
-		});
-
-		test('保存功能正确收集所有数据', async () => {
-			const { validateAndSave } = require('../../ui/ui-utils');
-			validateAndSave.mockImplementation((fields: any, _: any, callback: any) => {
-				callback(fields);
-				return Promise.resolve();
-			});
-
+	describe('保存流程', () => {
+		test('saveAndClose 会在验证通过后调用 validateAndSave', async () => {
+			validateAndSaveMock.mockResolvedValue(true);
 			mockPresetManager.updatePresetFields.mockResolvedValue(mockPreset);
 
 			await modal['saveAndClose']();
 
-			expect(validateAndSave).toHaveBeenCalledWith(
+			expect(validateAndSaveMock).toHaveBeenCalledWith(
 				modal['fields'],
 				[],
 				expect.any(Function),
-				expect.any(Object)
-			);
-		});
-	});
-
-	describe('生命周期测试', () => {
-		test.skip('onOpen 正确初始化 - 跳过复杂 DOM mock 设置', () => {
-			// 这个测试需要复杂的 DOM mock 设置，核心功能已通过其他测试验证
-		});
-
-		test('onClose 正确清理资源', () => {
-			modal.onClose();
-
-			expect(modal.contentEl.empty).toHaveBeenCalled();
-		});
-	});
-
-	describe('字段管理测试', () => {
-		test('addNewField 正确添加字段', () => {
-			const mockContainer = {
-				empty: jest.fn()
-			} as any;
-
-			const initialLength = modal['fields'].length;
-			modal['addNewField'](mockContainer);
-
-			expect(modal['fields']).toHaveLength(initialLength + 1);
-			expect(modal['fields'][initialLength]).toEqual({
-				key: '',
-				type: 'text',
-				label: '',
-				default: '',
-				options: []
-			});
-		});
-
-		test('removeField 正确删除字段', () => {
-			const mockContainer = {
-				empty: jest.fn()
-			} as any;
-
-			// 添加一个字段以便测试删除
-			modal['addNewField'](mockContainer);
-			const initialLength = modal['fields'].length;
-
-			modal['removeField'](0, mockContainer);
-
-			expect(modal['fields']).toHaveLength(initialLength - 1);
-		});
-	});
-
-	describe('验证功能测试', () => {
-		test('validateFields 正确验证必填字段', () => {
-			modal['fields'] = [
-				{ key: '', type: 'text', label: '', default: '', options: [] },
-				{ key: 'valid-key', type: 'text', label: 'Valid Label', default: '', options: [] }
-			];
-
-			const result = modal['validateFields']();
-
-			expect(result.isValid).toBe(false);
-			expect(result.errors).toContain('字段 1: Frontmatter 键名不能为空');
-			expect(result.errors).toContain('字段 1: 显示名称不能为空');
-		});
-
-		test('validateFields 正确验证字段格式', () => {
-			modal['fields'] = [
-				{ key: 'invalid key!', type: 'text', label: 'Label', default: '', options: [] }
-			];
-
-			const result = modal['validateFields']();
-
-			expect(result.isValid).toBe(false);
-			expect(result.errors).toContain(
-				'字段 1: Frontmatter 键名格式不正确，只能包含字母、数字、下划线和连字符，且必须以字母或下划线开头'
+				expect.objectContaining({
+					successMessage: '字段配置已保存'
+				})
 			);
 		});
 
-		test('validateFields 正确验证 select 类型字段', () => {
+		test('验证失败时 saveAndClose 会阻止保存', async () => {
 			modal['fields'] = [
-				{ key: 'status', type: 'select', label: 'Status', default: '', options: [] }
+				{ key: '', type: 'text', label: '', default: '', options: [] }
 			];
 
-			const result = modal['validateFields']();
-
-			expect(result.isValid).toBe(false);
-			expect(result.errors).toContain('字段 1: 单选类型必须至少有一个选项');
-		});
-
-		test('validateFields 正确检测重复键名', () => {
-			modal['fields'] = [
-				{ key: 'status', type: 'text', label: 'Status 1', default: '', options: [] },
-				{ key: 'status', type: 'text', label: 'Status 2', default: '', options: [] }
-			];
-
-			const result = modal['validateFields']();
-
-			expect(result.isValid).toBe(false);
-			expect(result.errors).toContain('发现重复的 Frontmatter 键名: status');
-		});
-	});
-
-	describe('事件处理测试', () => {
-		test('handleDragStart 正确设置拖拽状态', () => {
-			modal['handleDragStart'](2);
-
-			expect(modal['draggedIndex']).toBe(2);
-		});
-
-		test('handleDragEnd 正确清理拖拽状态', () => {
-			const mockContainer = {
-				querySelectorAll: jest.fn().mockReturnValue([])
-			} as any;
-
-			modal['draggedIndex'] = 2;
-			modal['handleDragEnd'](mockContainer);
-
-			expect(modal['draggedIndex']).toBeNull();
-			expect(mockContainer.querySelectorAll).toHaveBeenCalledWith('.note-architect-field-item');
+			await modal['saveAndClose']();
+			expect(validateAndSaveMock).not.toHaveBeenCalled();
 		});
 	});
 });

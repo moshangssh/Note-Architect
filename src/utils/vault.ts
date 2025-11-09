@@ -1,4 +1,4 @@
-import type { App, TFolder } from 'obsidian';
+import { App, TFolder } from 'obsidian';
 import { normalizePath } from '@utils/path';
 
 export interface SafeFolderResult {

@@ -115,6 +115,88 @@ describe('FieldConfigForm', () => {
 		});
 	});
 
+	describe('update', () => {
+		it('should not re-render for non-structural changes (key, label, default, description)', () => {
+			// First render to establish baseline
+			jest.clearAllMocks();
+			fieldForm.render(mockContainer);
+			const initialEmptyCallCount = mockEmpty.mock.calls.length;
+
+			// Update with non-structural changes
+			const updatedField = {
+				...mockField,
+				key: 'new-key',
+				label: '新标签',
+				default: 'new-default',
+				description: '新描述'
+			};
+			fieldForm.update(updatedField, 0);
+
+			// Should not have called empty again (no re-render)
+			expect(mockEmpty.mock.calls.length).toBe(initialEmptyCallCount);
+		});
+
+		it('should re-render for structural changes (type change)', () => {
+			// First render to establish baseline
+			jest.clearAllMocks();
+			fieldForm.render(mockContainer);
+			const initialEmptyCallCount = mockEmpty.mock.calls.length;
+
+			// Update with structural change - type change
+			const updatedField = {
+				...mockField,
+				type: 'select' as FrontmatterFieldType
+			};
+			fieldForm.update(updatedField, 0);
+
+			// Should have called empty again (re-render)
+			expect(mockEmpty.mock.calls.length).toBeGreaterThan(initialEmptyCallCount);
+		});
+
+		it('should re-render for structural changes (options change)', () => {
+			// Setup a select field
+			mockField.type = 'select';
+			mockField.options = ['option1', 'option2'];
+			fieldForm = new FieldConfigForm({ ...mockConfig, field: mockField });
+
+			// First render to establish baseline
+			jest.clearAllMocks();
+			fieldForm.render(mockContainer);
+			const initialEmptyCallCount = mockEmpty.mock.calls.length;
+
+			// Update with structural change - options change
+			const updatedField = {
+				...mockField,
+				options: ['option1', 'option2', 'option3']
+			};
+			fieldForm.update(updatedField, 0);
+
+			// Should have called empty again (re-render)
+			expect(mockEmpty.mock.calls.length).toBeGreaterThan(initialEmptyCallCount);
+		});
+
+		it('should re-render for structural changes (useTemplaterTimestamp change)', () => {
+			// Setup a date field
+			mockField.type = 'date';
+			fieldForm = new FieldConfigForm({ ...mockConfig, field: mockField });
+
+			// First render to establish baseline
+			jest.clearAllMocks();
+			fieldForm.render(mockContainer);
+			const initialEmptyCallCount = mockEmpty.mock.calls.length;
+
+			// Update with structural change - useTemplaterTimestamp change
+			const updatedField = {
+				...mockField,
+				useTemplaterTimestamp: true
+			};
+			fieldForm.update(updatedField, 0);
+
+			// Should have called empty again (re-render)
+			expect(mockEmpty.mock.calls.length).toBeGreaterThan(initialEmptyCallCount);
+		});
+	});
+
 	describe('Field type handling', () => {
 		it('should handle text type fields', () => {
 			mockField.type = 'text';

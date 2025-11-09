@@ -2,7 +2,7 @@ import { App, Editor, MarkdownView, Modal } from 'obsidian';
 import type NoteArchitect from '@core/plugin';
 import { TemplateManager } from '@templates';
 import { TemplateLoadStatus } from '@types';
-import type { Template, TemplateLoadResult } from '@types';
+import type { Template, TemplateLoadResult, FrontmatterPreset } from '@types';
 import { processTemplateContent, parseTemplateContent } from '@engine/TemplateEngine';
 import { FrontmatterManagerModal } from './frontmatter-manager-modal';
 import { DynamicPresetSelectorModal } from './dynamic-preset-selector-modal';
@@ -395,6 +395,10 @@ export class TemplateSelectorModal extends Modal {
 		};
 	}
 
+	private getAvailablePresets(): FrontmatterPreset[] {
+		return this.plugin.presetManager.getPresets();
+	}
+
 	private handleTemplateClick(template: Template) {
 		this.selectedTemplate = template;
 		this.renderPreview(template);
@@ -402,9 +406,11 @@ export class TemplateSelectorModal extends Modal {
 
 		const templateFM = parseTemplateContent(template.content).frontmatter;
 		const { ids: configIds } = resolvePresetConfigIds(templateFM);
+		const availablePresets = this.getAvailablePresets();
+		const hasAvailablePresets = availablePresets.length > 0;
 
 		if (configIds.length > 0) {
-			const { matched, missing } = collectMatchingPresets(configIds, this.plugin.settings.frontmatterPresets);
+			const { matched, missing } = collectMatchingPresets(configIds, availablePresets);
 
 			if (missing.length > 0) {
 				notifyWarning(`以下预设不存在：${missing.join('、')}，将略过这些预设。`);
@@ -422,10 +428,10 @@ export class TemplateSelectorModal extends Modal {
 		}
 
 		// 如果模板没有配置预设且有可用预设，根据设置决定是否显示动态预设选择
-		if (this.plugin.settings.frontmatterPresets.length > 0 && this.plugin.settings.enableDynamicPresetSelection) {
+		if (hasAvailablePresets && this.plugin.settings.enableDynamicPresetSelection) {
 			this.showDynamicPresetSelector(template);
 		} else {
-			if (this.plugin.settings.frontmatterPresets.length > 0 && !this.plugin.settings.enableDynamicPresetSelection) {
+			if (hasAvailablePresets && !this.plugin.settings.enableDynamicPresetSelection) {
 				notifyInfo('动态预设选择已禁用，将直接插入模板');
 			} else {
 				notifyInfo('当前没有可用预设，将直接插入模板');

@@ -60,6 +60,7 @@ DEFAULT_IGNORE_PATTERNS = [
     '.obsidian',
     '.claude',
     '.vscode',
+    'bmad',  # 默认跳过 bmad 目录
 ]
 
 

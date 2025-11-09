@@ -18,9 +18,14 @@ export class FrontmatterManagerModal extends Modal {
 	private readonly sourcePresetNames: string[];
 	private formData: Record<string, unknown>;
 	private readonly multiSelectFieldRefs: Map<string, HTMLElement> = new Map();
+	private readonly fieldContainerRefs: Map<string, HTMLElement> = new Map();
+	private readonly fieldErrorRefs: Map<string, HTMLElement> = new Map();
+	private readonly fieldInputRefs: Map<string, HTMLElement> = new Map();
 	private resolvedDefaults: Map<string, string | string[]> = new Map();
 	private templaterDefaultsSkipped: Set<string> = new Set();
 	private isResolving = true;
+	private touchedFieldKeys: Set<string> = new Set();
+	private currentFieldErrors: Record<string, string[]> = {};
 
 	constructor(app: App, plugin: NoteArchitect, template: Template, presets: FrontmatterPreset[]) {
 		super(app);
@@ -105,10 +110,14 @@ export class FrontmatterManagerModal extends Modal {
 	private renderFormFields(containerEl: HTMLElement): void {
 		containerEl.empty();
 		this.multiSelectFieldRefs.clear();
+		this.fieldContainerRefs.clear();
+		this.fieldErrorRefs.clear();
+		this.fieldInputRefs.clear();
 
 		this.mergedPreset.fields.forEach((field) => {
 			const fieldContainer = containerEl.createDiv('note-architect-form-field');
 			fieldContainer.setAttr('data-field-key', field.key);
+			this.fieldContainerRefs.set(field.key, fieldContainer);
 
 			// 字段标签
 			fieldContainer.createEl('label', {
@@ -132,6 +141,8 @@ export class FrontmatterManagerModal extends Modal {
 					this.formData[field.key] = typeof resolvedDefault === 'string' ? resolvedDefault : '';
 				}
 			}
+
+			let inputEl: HTMLInputElement | HTMLSelectElement | undefined;
 
 			if (isTemplaterAutofill) {
 				const previewValue = this.coerceToString(this.formData[field.key]);
@@ -157,128 +168,134 @@ export class FrontmatterManagerModal extends Modal {
 						text: '检测到 Templater 表达式，此处不会预执行。'
 					});
 				}
-
-				return;
-			}
-
-			// 字段输入控件
-			let inputEl: HTMLInputElement | HTMLSelectElement | undefined;
-
-			switch (field.type) {
-				case 'text':
-					inputEl = fieldContainer.createEl('input', {
-						type: 'text',
-						cls: 'note-architect-form-input'
-					}) as HTMLInputElement;
-					break;
-
-				case 'date':
-					inputEl = fieldContainer.createEl('input', {
-						type: 'date',
-						cls: 'note-architect-form-input'
-					}) as HTMLInputElement;
-					break;
-
-				case 'select': {
-					const selectEl = fieldContainer.createEl('select', {
-						cls: 'note-architect-form-select'
-					}) as HTMLSelectElement;
-					inputEl = selectEl;
-
-					// 添加默认选项
-					selectEl.createEl('option', {
-						value: '',
-						text: '请选择...'
-					});
-
-					// 添加预设选项
-					if (field.options) {
-						field.options.forEach(option => {
-							selectEl.createEl('option', {
-								value: option,
-								text: option
-							});
-						});
-					}
-					break;
-				}
-
-			case 'multi-select': {
-				// 多选框组
-				const multiSelectContainer = fieldContainer.createDiv('note-architect-multi-select-container');
-				this.multiSelectFieldRefs.set(field.key, multiSelectContainer);
-
-				// 初始化多选字段的表单数据
-				const currentSelection = normalizeStringArray(
-					this.formData[field.key] ?? resolvedDefault,
-					allowedOptions,
-				);
-				this.formData[field.key] = currentSelection;
-
-				if (field.options && field.options.length > 0) {
-					field.options.forEach(option => {
-						const normalizedOption = option.trim();
-						const optionContainer = multiSelectContainer.createDiv('note-architect-checkbox-container');
-
-						const checkbox = optionContainer.createEl('input', {
-							type: 'checkbox',
-							value: normalizedOption,
-							cls: 'note-architect-form-checkbox'
+			} else {
+				switch (field.type) {
+					case 'text': {
+						const input = fieldContainer.createEl('input', {
+							type: 'text',
+							cls: 'note-architect-form-input'
 						}) as HTMLInputElement;
+						inputEl = input;
+						this.fieldInputRefs.set(field.key, input);
+						break;
+					}
 
-						// 添加 change 事件监听器来实时更新表单数据
-						checkbox.addEventListener('change', () => {
-							this.collectMultiSelectData();
+					case 'date': {
+						const input = fieldContainer.createEl('input', {
+							type: 'date',
+							cls: 'note-architect-form-input'
+						}) as HTMLInputElement;
+						inputEl = input;
+						this.fieldInputRefs.set(field.key, input);
+						break;
+					}
+
+					case 'select': {
+						const selectEl = fieldContainer.createEl('select', {
+							cls: 'note-architect-form-select'
+						}) as HTMLSelectElement;
+						inputEl = selectEl;
+						this.fieldInputRefs.set(field.key, selectEl);
+
+						selectEl.createEl('option', {
+							value: '',
+							text: '请选择...'
 						});
 
-						// 如果选项已在表单数据中，预选中
-						if (currentSelection.includes(normalizedOption)) {
-							checkbox.checked = true;
+						if (field.options) {
+							field.options.forEach(option => {
+								selectEl.createEl('option', {
+									value: option,
+									text: option
+								});
+							});
 						}
+						break;
+					}
 
-						optionContainer.createEl('label', {
-							text: normalizedOption,
-							cls: 'note-architect-checkbox-label'
-						});
-					});
-				} else {
-					multiSelectContainer.createEl('small', {
-						text: '暂无可用选项',
-						cls: 'setting-item-description'
-					});
-				}
-				break;
-			}
+					case 'multi-select': {
+						const multiSelectContainer = fieldContainer.createDiv('note-architect-multi-select-container');
+						this.multiSelectFieldRefs.set(field.key, multiSelectContainer);
 
-				default:
-					// 默认为文本输入
-					inputEl = fieldContainer.createEl('input', {
-						type: 'text',
-						cls: 'note-architect-form-input'
-					}) as HTMLInputElement;
-					break;
-			}
+						const currentSelection = normalizeStringArray(
+							this.formData[field.key] ?? resolvedDefault,
+							allowedOptions,
+						);
+						this.formData[field.key] = currentSelection;
 
-			// 为有 inputEl 的字段类型添加事件监听器
-			if (inputEl && (field.type === 'text' || field.type === 'date' || field.type === 'select')) {
-				// 设置初始值
-				if (field.type === 'text' || field.type === 'date') {
-					(inputEl as HTMLInputElement).value = this.coerceToString(this.formData[field.key]);
-				} else if (field.type === 'select') {
-					const selectEl = inputEl as HTMLSelectElement;
-					const currentValue = this.coerceToString(this.formData[field.key]);
-					const matchingOption = Array.from(selectEl.options).find(option => option.value === currentValue);
-					if (matchingOption) {
-						selectEl.value = currentValue;
+						if (field.options && field.options.length > 0) {
+							field.options.forEach(option => {
+								const normalizedOption = option.trim();
+								const optionContainer = multiSelectContainer.createDiv('note-architect-checkbox-container');
+
+								const checkbox = optionContainer.createEl('input', {
+									type: 'checkbox',
+									value: normalizedOption,
+									cls: 'note-architect-form-checkbox'
+								}) as HTMLInputElement;
+
+								checkbox.addEventListener('change', () => {
+									this.collectMultiSelectData();
+									this.handleFieldInteraction(field.key);
+								});
+
+								if (currentSelection.includes(normalizedOption)) {
+									checkbox.checked = true;
+								}
+
+								optionContainer.createEl('label', {
+									text: normalizedOption,
+									cls: 'note-architect-checkbox-label'
+								});
+							});
+						} else {
+							multiSelectContainer.createEl('small', {
+								text: '暂无可用选项',
+								cls: 'setting-item-description'
+							});
+						}
+						break;
+					}
+
+					default: {
+						const input = fieldContainer.createEl('input', {
+							type: 'text',
+							cls: 'note-architect-form-input'
+						}) as HTMLInputElement;
+						inputEl = input;
+						this.fieldInputRefs.set(field.key, input);
+						break;
 					}
 				}
 
-				// 添加输入变化监听器
-				inputEl.addEventListener('input', () => {
-					this.formData[field.key] = field.type === 'select'
-						? inputEl!.value
-						: (inputEl as HTMLInputElement).value;
-				});
+				if (inputEl && (field.type === 'text' || field.type === 'date' || field.type === 'select')) {
+					if (field.type === 'text' || field.type === 'date') {
+						(inputEl as HTMLInputElement).value = this.coerceToString(this.formData[field.key]);
+					} else if (field.type === 'select') {
+						const selectEl = inputEl as HTMLSelectElement;
+						const currentValue = this.coerceToString(this.formData[field.key]);
+						const matchingOption = Array.from(selectEl.options).find(option => option.value === currentValue);
+						if (matchingOption) {
+							selectEl.value = currentValue;
+						}
+					}
+
+					inputEl.addEventListener('input', () => {
+						this.formData[field.key] = field.type === 'select'
+							? inputEl!.value
+							: (inputEl as HTMLInputElement).value;
+					});
+
+					if (field.type === 'select') {
+						inputEl.addEventListener('change', () => {
+							this.handleFieldInteraction(field.key);
+						});
+					} else {
+						inputEl.addEventListener('blur', () => {
+							this.handleFieldInteraction(field.key);
+						});
+					}
+				}
 			}
 
 			if (isTemplaterDefaultSkipped) {
@@ -287,12 +304,74 @@ export class FrontmatterManagerModal extends Modal {
 					text: '检测到 Templater 表达式，此处不会预执行。'
 				});
 			}
+
+			const errorEl = fieldContainer.createDiv('note-architect-form-error is-hidden');
+			errorEl.setAttr('role', 'alert');
+			this.fieldErrorRefs.set(field.key, errorEl);
+			this.updateFieldErrorUI(field.key);
 		});
 
 		// 在所有字段渲染完成后，收集一次多选框数据以捕获默认选中的值
 		setTimeout(() => {
 			this.collectMultiSelectData();
 		}, 0);
+		this.applyFieldErrors();
+	}
+
+	private handleFieldInteraction(fieldKey: string): void {
+		if (!fieldKey || this.isResolving) {
+			return;
+		}
+		this.touchedFieldKeys.add(fieldKey);
+		this.runInlineValidation();
+	}
+
+	private runInlineValidation(options?: { showAll?: boolean }): void {
+		if (this.isResolving) {
+			return;
+		}
+		const validation = this.plugin.presetManager.validateFormData(this.mergedPreset, this.formData);
+		this.updateFieldValidationErrors(validation.fieldErrors, options);
+	}
+
+	private updateFieldValidationErrors(
+		errors: Record<string, string[]>,
+		options?: { showAll?: boolean },
+	): void {
+		this.currentFieldErrors = errors;
+		this.applyFieldErrors(options);
+	}
+
+	private applyFieldErrors(options?: { showAll?: boolean }): void {
+		for (const fieldKey of this.fieldContainerRefs.keys()) {
+			this.updateFieldErrorUI(fieldKey, options);
+		}
+	}
+
+	private updateFieldErrorUI(fieldKey: string, options?: { showAll?: boolean }): void {
+		const container = this.fieldContainerRefs.get(fieldKey);
+		const errorEl = this.fieldErrorRefs.get(fieldKey);
+		if (!container || !errorEl) {
+			return;
+		}
+		const messages = this.currentFieldErrors[fieldKey] ?? [];
+		const shouldShow = options?.showAll === true || this.touchedFieldKeys.has(fieldKey);
+		const hasErrors = shouldShow && messages.length > 0;
+		errorEl.setText(hasErrors ? messages.join(' ') : '');
+		errorEl.toggleClass('is-hidden', !hasErrors);
+		container.toggleClass('note-architect-form-field--error', hasErrors);
+
+		const inputEl = this.fieldInputRefs.get(fieldKey);
+		if (inputEl) {
+			inputEl.toggleClass('note-architect-form-input--error', hasErrors);
+		} else {
+			const multiSelectContainer = this.multiSelectFieldRefs.get(fieldKey);
+			multiSelectContainer?.toggleClass('note-architect-multi-select-container--error', hasErrors);
+		}
+	}
+
+	private markAllFieldsTouched(): void {
+		this.touchedFieldKeys = new Set(this.mergedPreset.fields.map(field => field.key));
 	}
 
 	/**
@@ -446,7 +525,12 @@ export class FrontmatterManagerModal extends Modal {
 	}
 
 	private notifyValidationFailure(errors: string[]): void {
-		notifyWarning(`表单验证失败:\n${errors.join('\n')}`, { prefix: false });
+		const header = '表单验证失败，请根据字段下方的提示修正。';
+		if (errors.length === 0) {
+			notifyWarning(header, { prefix: false });
+			return;
+		}
+		notifyWarning(`${header}\n${errors.join('\n')}`, { prefix: false });
 	}
 
 	private handleInsertionResult(result: TemplateInsertionResult): void {
@@ -495,6 +579,8 @@ export class FrontmatterManagerModal extends Modal {
 
 		const validation = this.plugin.presetManager.validateFormData(this.mergedPreset, this.formData);
 		if (!validation.isValid) {
+			this.markAllFieldsTouched();
+			this.updateFieldValidationErrors(validation.fieldErrors, { showAll: true });
 			this.notifyValidationFailure(validation.errors);
 			return;
 		}

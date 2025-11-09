@@ -26,10 +26,12 @@ export class DynamicPresetSelectorModal extends Modal {
 		this.template = template;
 		this.onPresetSelected = onPresetSelected;
 
+		const availablePresets = this.plugin.presetManager.getPresets();
+
 		// 计算智能匹配结果
 		this.matchResults = PresetMatcher.matchPresets(
 			template,
-			this.plugin.settings.frontmatterPresets,
+			availablePresets,
 			{
 				enableFieldNameMatching: true,
 			}

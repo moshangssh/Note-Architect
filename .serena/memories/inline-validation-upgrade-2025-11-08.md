@@ -1,0 +1,1 @@
+2025-11-08: FieldConfigModal、FieldConfigForm、DetailPanelView 之间新增 FieldValidationResult/Errors 协议与 touched 标记，内联错误提示通过 setValidationErrors 注入；FrontmatterManagerModal 也维护字段级 refs/touched 集合并依赖 PresetManager.validateFormData 新增的 fieldErrors 返回值来就地渲染错误。样式层增加 note-architect-field/form-* 系列 error class 统一红色态。

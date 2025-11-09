@@ -1,5 +1,4 @@
 import { App } from 'obsidian';
-import { App } from 'obsidian';
 import { parseFrontmatter, getNoteMetadata } from '@utils/frontmatter-editor';
 import type NoteArchitect from '@core/plugin';
 import type {

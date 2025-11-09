@@ -2,293 +2,301 @@ import type { FrontmatterField } from '@types';
 import { isDropAfter } from '@ui/ui-utils';
 
 /**
- * FieldItem 组件配置接口
+ * FieldItem 配置，专注于主列表项展示与交互
  */
 export interface FieldItemConfig {
 	field: FrontmatterField;
 	index: number;
-	isCollapsed: boolean;
-	onDelete: (index: number) => void;
-	onDragStart: (index: number) => void;
-	onDragEnd: () => void;
-	onReorder: (fromIndex: number, targetIndex: number, isAfter: boolean) => void;
-	onToggleCollapse: (field: FrontmatterField, collapsed: boolean) => void;
-	draggedIndex: number | null;
+	isSelected: boolean;
+	getDraggedIndex?: () => number | null;
+	onSelect?: (index: number) => void;
+	onDragStart?: (index: number) => void;
+	onDragEnd?: () => void;
+	onReorder?: (fromIndex: number, targetIndex: number, isAfter: boolean) => void;
 }
 
 /**
- * FieldItem 组件 - 负责渲染单个字段项的 UI
- * 包含拖拽、折叠、删除等交互功能
+ * 精简后的 FieldItem，只负责列表项的展示与拖拽
  */
 export class FieldItem {
 	private readonly config: FieldItemConfig;
-	private fieldItemEl?: HTMLDivElement;
-	private headerEl?: HTMLDivElement;
-	private configContainer?: HTMLDivElement;
-	private titleEl?: HTMLElement;
-	private summaryEl?: HTMLElement;
-	private collapsed: boolean;
+	private rootEl?: HTMLDivElement;
+	private titleEl?: HTMLDivElement;
+	private subtitleEl?: HTMLDivElement;
 	private clickHandler?: (event: MouseEvent) => void;
 	private keydownHandler?: (event: KeyboardEvent) => void;
+	private dragOverHandler?: (event: DragEvent) => void;
+	private dragLeaveHandler?: () => void;
+	private dropHandler?: (event: DragEvent) => void;
+	private dragStartHandler?: (event: DragEvent) => void;
+	private dragEndHandler?: () => void;
+	private dragHandleEl?: HTMLElement;
+	private animationEndHandler?: () => void;
 
 	constructor(config: FieldItemConfig) {
 		this.config = config;
-		this.collapsed = config.isCollapsed;
 	}
 
 	/**
-	 * 渲染字段项并返回根元素
+	 * 渲染主列表项
 	 */
 	render(containerEl: HTMLElement): HTMLElement {
-		// 创建字段项容器
-		this.fieldItemEl = containerEl.createDiv('note-architect-field-item');
-		this.fieldItemEl.dataset.index = this.config.index.toString();
+		this.rootEl = containerEl.createDiv('note-architect-master-list__item');
+		this.rootEl.dataset.index = this.config.index.toString();
+		this.rootEl.setAttr('role', 'option');
+		this.rootEl.setAttr('tabindex', this.config.isSelected ? '0' : '-1');
+		this.rootEl.setAttr('aria-selected', this.config.isSelected ? 'true' : 'false');
 
-		// 渲染头部
-		this.renderHeader();
+		if (this.config.isSelected) {
+			this.rootEl.addClass('is-selected');
+		}
 
-		// 创建配置容器
-		this.configContainer = this.fieldItemEl.createDiv('note-architect-field-config');
+		this.renderContent();
+		this.setupSelectionHandlers();
+		this.setupDragHandlers();
+		this.triggerEnterAnimation();
 
-		// 设置折叠行为
-		this.setupCollapseBehaviour();
-
-		// 设置初始折叠状态
-		this.setCollapsed(this.collapsed);
-
-		return this.fieldItemEl;
+		return this.rootEl;
 	}
 
 	/**
-	 * 渲染字段项头部
+	 * 更新选中态而不重新渲染 DOM
 	 */
-	private renderHeader(): void {
-		if (!this.fieldItemEl) {
+	setSelected(isSelected: boolean): void {
+		if (!this.rootEl) {
+			return;
+		}
+		this.config.isSelected = isSelected;
+		this.rootEl.toggleClass('is-selected', isSelected);
+		this.rootEl.setAttr('aria-selected', isSelected ? 'true' : 'false');
+		this.rootEl.setAttr('tabindex', isSelected ? '0' : '-1');
+	}
+
+	/**
+	 * 靶向更新标题及副标题，避免整行重渲染
+	 */
+	updateSummary(field: FrontmatterField): void {
+		this.config.field = field;
+		if (this.titleEl) {
+			this.titleEl.setText(field.label?.trim() || `字段 ${this.config.index + 1}`);
+		}
+		if (this.subtitleEl) {
+			if (field.key?.trim()) {
+				this.subtitleEl.setText(`Frontmatter 键名：${field.key}`);
+			} else {
+				this.subtitleEl.setText('尚未设置 Frontmatter 键名');
+			}
+		}
+	}
+
+	/**
+	 * 聚焦当前列表项
+	 */
+	focus(): boolean {
+		if (!this.rootEl) {
+			return false;
+		}
+		this.rootEl.focus();
+		return true;
+	}
+
+	/**
+	 * 清理所有绑定
+	 */
+	destroy(): void {
+		if (!this.rootEl) {
 			return;
 		}
 
-		this.headerEl = this.fieldItemEl.createDiv('note-architect-field-header');
-		this.headerEl.addClass('note-architect-field-header--collapsible');
-		this.headerEl.setAttr('tabindex', '0');
-		this.headerEl.setAttr('role', 'button');
+		if (this.clickHandler) {
+			this.rootEl.removeEventListener('click', this.clickHandler);
+		}
+		if (this.keydownHandler) {
+			this.rootEl.removeEventListener('keydown', this.keydownHandler);
+		}
+		if (this.dragOverHandler) {
+			this.rootEl.removeEventListener('dragover', this.dragOverHandler);
+		}
+		if (this.dragLeaveHandler) {
+			this.rootEl.removeEventListener('dragleave', this.dragLeaveHandler);
+		}
+		if (this.dropHandler) {
+			this.rootEl.removeEventListener('drop', this.dropHandler);
+		}
+		if (this.dragHandleEl && this.dragStartHandler) {
+			this.dragHandleEl.removeEventListener('dragstart', this.dragStartHandler);
+		}
+		if (this.dragHandleEl && this.dragEndHandler) {
+			this.dragHandleEl.removeEventListener('dragend', this.dragEndHandler);
+		}
+		if (this.rootEl && this.animationEndHandler) {
+			this.rootEl.removeEventListener('animationend', this.animationEndHandler);
+		}
 
-		// 渲染左侧区域（拖拽手柄 + 标题 + 摘要）
-		const headerLeft = this.headerEl.createDiv('note-architect-field-header__left');
-		this.renderDragHandle(headerLeft);
-		this.titleEl = headerLeft.createEl('h4', { text: `字段 ${this.config.index + 1}` });
-		this.summaryEl = headerLeft.createSpan({
-			cls: 'note-architect-field-header__summary'
-		});
-
-		// 渲染右侧操作按钮
-		const headerActions = this.headerEl.createDiv('note-architect-field-header__actions');
-		const deleteBtn = headerActions.createEl('button', {
-			text: '删除',
-			cls: 'mod-warning'
-		});
-		deleteBtn.onclick = (event) => {
-			event.stopPropagation();
-			this.config.onDelete(this.config.index);
-		};
-
-		// 设置拖拽目标交互
-		this.setupDragTargetHandlers();
-
-		// 更新摘要
-		this.updateSummary();
+		this.rootEl = undefined;
+		this.dragHandleEl = undefined;
+		this.animationEndHandler = undefined;
+		this.titleEl = undefined;
+		this.subtitleEl = undefined;
 	}
 
 	/**
-	 * 渲染拖拽手柄
+	 * 渲染列表项文本内容
 	 */
-	private renderDragHandle(headerLeft: HTMLElement): void {
-		const dragHandle = headerLeft.createSpan({
-			cls: 'note-architect-field-drag-handle',
-			text: '⠿'
-		});
+	private renderContent(): void {
+		if (!this.rootEl) {
+			return;
+		}
 
+		const dragHandle = this.rootEl.createSpan({
+			cls: 'note-architect-master-list__drag-handle',
+			text: '⠿',
+		});
 		dragHandle.setAttr('draggable', 'true');
+		this.dragHandleEl = dragHandle;
 
-		dragHandle.addEventListener('dragstart', (event) => {
-			this.config.onDragStart(this.config.index);
-			this.fieldItemEl?.classList.add('note-architect-field-item--dragging');
-			event.dataTransfer?.setData('text/plain', String(this.config.index));
-			if (event.dataTransfer) {
-				event.dataTransfer.effectAllowed = 'move';
-			}
-		});
+		const content = this.rootEl.createDiv('note-architect-master-list__item-content');
+		const title = content.createDiv('note-architect-master-list__item-title');
+		title.setText(this.config.field.label?.trim() || `字段 ${this.config.index + 1}`);
+		this.titleEl = title;
 
-		dragHandle.addEventListener('dragend', () => {
-			this.config.onDragEnd();
-			this.fieldItemEl?.classList.remove('note-architect-field-item--dragging');
-		});
+		const subtitle = content.createDiv('note-architect-master-list__item-subtitle');
+		if (this.config.field.key?.trim()) {
+			subtitle.setText(`Frontmatter 键名：${this.config.field.key}`);
+		} else {
+			subtitle.setText('尚未设置 Frontmatter 键名');
+		}
+		this.subtitleEl = subtitle;
 	}
 
 	/**
-	 * 设置拖拽目标交互
+	 * 设置点击/键盘选择行为
 	 */
-	private setupDragTargetHandlers(): void {
-		if (!this.fieldItemEl) {
+	private setupSelectionHandlers(): void {
+		if (!this.rootEl) {
 			return;
 		}
 
-		this.fieldItemEl.addEventListener('dragover', (event) => {
-			if (this.config.draggedIndex === null) {
-				return;
-			}
-			event.preventDefault();
-			if (event.dataTransfer) {
-				event.dataTransfer.dropEffect = 'move';
-			}
-
-			const isAfter = isDropAfter(event, this.fieldItemEl!);
-			this.fieldItemEl!.classList.toggle('note-architect-field-item--drag-over-before', !isAfter);
-			this.fieldItemEl!.classList.toggle('note-architect-field-item--drag-over-after', isAfter);
-		});
-
-		this.fieldItemEl.addEventListener('dragleave', () => {
-			this.fieldItemEl?.classList.remove(
-				'note-architect-field-item--drag-over-before',
-				'note-architect-field-item--drag-over-after'
-			);
-		});
-
-		this.fieldItemEl.addEventListener('drop', (event) => {
-			if (this.config.draggedIndex === null) {
-				return;
-			}
-			event.preventDefault();
-
-			const targetIndex = Number(this.fieldItemEl!.dataset.index);
-			if (Number.isNaN(targetIndex)) {
-				return;
-			}
-
-			const isAfter = isDropAfter(event, this.fieldItemEl!);
-			this.config.onReorder(this.config.draggedIndex, targetIndex, isAfter);
-		});
-	}
-
-	/**
-	 * 设置折叠行为
-	 */
-	private setupCollapseBehaviour(): void {
-		if (!this.headerEl || !this.configContainer) {
-			return;
-		}
-
-		const shouldIgnoreToggle = (target: HTMLElement | null): boolean => {
-			if (!target) {
-				return false;
-			}
-			return Boolean(
-				target.closest('.note-architect-field-header__actions') ||
-				target.closest('.note-architect-field-drag-handle')
-			);
-		};
-
-		const toggleCollapse = () => {
-			const nextState = !this.collapsed;
-			this.collapsed = nextState;
-			this.setCollapsed(nextState);
-			this.config.onToggleCollapse(this.config.field, nextState);
-		};
-
-		this.clickHandler = (event) => {
-			const target = event.target as HTMLElement | null;
-			if (shouldIgnoreToggle(target)) {
-				return;
-			}
-			toggleCollapse();
+		this.clickHandler = () => {
+			this.config.onSelect?.(this.config.index);
 		};
 
 		this.keydownHandler = (event) => {
 			if (event.key === 'Enter' || event.key === ' ') {
 				event.preventDefault();
-				toggleCollapse();
+				this.config.onSelect?.(this.config.index);
 			}
 		};
 
-		this.headerEl.addEventListener('click', this.clickHandler);
-		this.headerEl.addEventListener('keydown', this.keydownHandler);
-	}
-
-	
-	/**
-	 * 获取配置容器，供父组件填充表单
-	 */
-	getConfigContainer(): HTMLElement {
-		if (!this.configContainer) {
-			throw new Error('FieldItem must be rendered before accessing config container');
-		}
-		return this.configContainer;
+		this.rootEl.addEventListener('click', this.clickHandler);
+		this.rootEl.addEventListener('keydown', this.keydownHandler);
 	}
 
 	/**
-	 * 更新头部摘要信息
+	 * 设置拖拽交互
 	 */
-	updateSummary(): void {
-		if (!this.titleEl || !this.summaryEl) {
+	private setupDragHandlers(): void {
+		if (!this.rootEl || !this.dragHandleEl) {
 			return;
 		}
 
-		const { field, index } = this.config;
+		this.dragStartHandler = (event) => {
+			this.config.onDragStart?.(this.config.index);
+			this.rootEl?.addClass('note-architect-master-list__item--dragging');
+			event.dataTransfer?.setData('text/plain', `${this.config.index}`);
+			if (event.dataTransfer) {
+				event.dataTransfer.effectAllowed = 'move';
+			}
+		};
 
-		// 更新标题
-		if (field.label?.trim()) {
-			this.titleEl.setText(field.label);
-		} else {
-			this.titleEl.setText(`字段 ${index + 1}`);
-		}
+		this.dragEndHandler = () => {
+			this.rootEl?.classList.remove('note-architect-master-list__item--dragging');
+			this.clearDropClasses();
+			this.config.onDragEnd?.();
+		};
 
-		// 更新摘要
-		const summaryParts: string[] = [];
-		if (field.key?.trim()) {
-			summaryParts.push(`键名: ${field.key}`);
-		}
+		this.dragHandleEl.addEventListener('dragstart', this.dragStartHandler);
+		this.dragHandleEl.addEventListener('dragend', this.dragEndHandler);
 
-		if (summaryParts.length === 0) {
-			this.summaryEl.empty();
-			return;
-		}
+		this.dragOverHandler = (event) => {
+			const draggedIndex = this.config.getDraggedIndex?.();
+			if (draggedIndex === null || draggedIndex === undefined || draggedIndex === this.config.index) {
+				return;
+			}
+			event.preventDefault();
+			event.dataTransfer && (event.dataTransfer.dropEffect = 'move');
 
-		this.summaryEl.setText(summaryParts.join(' | '));
+			const isAfter = isDropAfter(event, this.rootEl!);
+			this.rootEl!.classList.toggle('note-architect-master-list__item--drag-over-before', !isAfter);
+			this.rootEl!.classList.toggle('note-architect-master-list__item--drag-over-after', isAfter);
+		};
+
+		this.dragLeaveHandler = () => {
+			this.clearDropClasses();
+		};
+
+		this.dropHandler = (event) => {
+			const draggedIndex = this.config.getDraggedIndex?.();
+			if (draggedIndex === null || draggedIndex === undefined || draggedIndex === this.config.index) {
+				return;
+			}
+			event.preventDefault();
+
+			const isAfter = isDropAfter(event, this.rootEl!);
+			this.config.onReorder?.(draggedIndex, this.config.index, isAfter);
+			this.clearDropClasses();
+		};
+
+		this.rootEl.addEventListener('dragover', this.dragOverHandler);
+		this.rootEl.addEventListener('dragleave', this.dragLeaveHandler);
+		this.rootEl.addEventListener('drop', this.dropHandler);
 	}
 
 	/**
-	 * 设置折叠状态
+	 * 清除拖拽提示样式
 	 */
-	setCollapsed(collapsed: boolean): void {
-		if (!this.fieldItemEl || !this.configContainer || !this.headerEl) {
+	clearDropClasses(): void {
+		if (!this.rootEl) {
 			return;
 		}
+		this.rootEl.classList.remove('note-architect-master-list__item--drag-over-before');
+		this.rootEl.classList.remove('note-architect-master-list__item--drag-over-after');
+	}
 
-		this.collapsed = collapsed;
-		this.fieldItemEl.classList.toggle('note-architect-field-item--collapsed', collapsed);
-		this.configContainer.classList.toggle('note-architect-field-config--collapsed', collapsed);
-		this.headerEl.setAttr('aria-expanded', (!collapsed).toString());
-		this.headerEl.classList.toggle('note-architect-field-header--collapsed', collapsed);
+	getIndex(): number {
+		return this.config.index;
+	}
+
+	containsElement(element: HTMLElement | null): boolean {
+		if (!this.rootEl || !element) {
+			return false;
+		}
+		return this.rootEl === element || this.rootEl.contains(element);
 	}
 
 	/**
-	 * 清理组件
+	 * 渲染完成后触发入场动画
 	 */
-	destroy(): void {
-		// 显式移除事件监听器以提高内存管理
-		if (this.headerEl && this.clickHandler) {
-			this.headerEl.removeEventListener('click', this.clickHandler);
-		}
-		if (this.headerEl && this.keydownHandler) {
-			this.headerEl.removeEventListener('keydown', this.keydownHandler);
+	private triggerEnterAnimation(): void {
+		if (!this.rootEl) {
+			return;
 		}
 
-		// 清理引用
-		this.fieldItemEl = undefined;
-		this.headerEl = undefined;
-		this.configContainer = undefined;
-		this.titleEl = undefined;
-		this.summaryEl = undefined;
-		this.clickHandler = undefined;
-		this.keydownHandler = undefined;
+		const className = 'note-architect-master-list__item--entering';
+		this.rootEl.classList.remove(className);
+		// 强制重绘，确保重复渲染时动画可重新触发
+		void this.rootEl.offsetHeight;
+
+		const handleAnimationEnd = () => {
+			this.rootEl?.classList.remove(className);
+			if (this.rootEl && this.animationEndHandler) {
+				this.rootEl.removeEventListener('animationend', this.animationEndHandler);
+			}
+			this.animationEndHandler = undefined;
+		};
+
+		this.animationEndHandler = handleAnimationEnd;
+		this.rootEl.addEventListener('animationend', handleAnimationEnd);
+		this.rootEl.addClass(className);
 	}
 }
