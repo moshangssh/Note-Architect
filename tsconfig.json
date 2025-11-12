@@ -49,6 +49,12 @@
       ],
       "@utils/*": [
         "src/utils/*"
+      ],
+      "@actions": [
+        "src/actions"
+      ],
+      "@actions/*": [
+        "src/actions/*"
       ]
     },
     "inlineSourceMap": true,

@@ -1,0 +1,1 @@
+TemplateSelectorModal 已移除模板名称/正文的小写缓存，searchTemplates 直接在过滤时调用 toLowerCase，并保留 searchContentEnabled 判断；setTemplates 不再触及缓存状态。

@@ -2,12 +2,17 @@ import type { SaveSettingsOptions, SettingsManager } from '@settings';
 import type {
 	NoteArchitectSettings,
 	FrontmatterField,
-	FrontmatterFieldDefault,
 	FrontmatterPreset,
 } from '@types';
-import { normalizeStringArray } from '@utils/data-transformer';
-import { cloneFrontmatterField } from '@utils/frontmatter/field';
-import { generateUniquePresetId as generateUniquePresetIdUtil } from '@utils/preset-id';
+import {
+	cloneFrontmatterField,
+	normalizeFieldDefault,
+	sanitizeFrontmatterField,
+} from '@utils/frontmatter/field';
+import {
+	generateUniquePresetId as generateUniquePresetIdUtil,
+	generateUniquePresetIdFromOriginalId,
+} from '@utils/preset-id';
 
 export type PresetImportStrategy = 'merge' | 'replace';
 
@@ -165,14 +170,7 @@ export class PresetManager {
 				fields: preset.fields.map((field) => cloneFrontmatterField(field)),
 			}));
 
-			const currentPresets = this.settingsManager.getSettings().frontmatterPresets;
-			for (const preset of currentPresets) {
-				await this.settingsManager.deletePreset(preset.id, saveOptions);
-			}
-
-			for (const preset of clonedPresets) {
-				await this.settingsManager.addPreset(preset, saveOptions);
-			}
+			await this.settingsManager.replacePresets(clonedPresets, saveOptions);
 
 			appliedPresets = clonedPresets.map((preset) => ({
 				id: preset.id,
@@ -182,14 +180,16 @@ export class PresetManager {
 		} else {
 			const newlyAdded: FrontmatterPreset[] = [];
 			const existingIds = new Set(this.presets.map((preset) => preset.id));
+			const presetsToAppend: FrontmatterPreset[] = [];
 
 			for (const preset of sanitizedPresets) {
 				let targetId = preset.id;
 				if (existingIds.has(targetId)) {
-					let generatedId = this.generateUniquePresetId(preset.name);
-					while (existingIds.has(generatedId)) {
-						generatedId = this.generateUniquePresetId(`${preset.name}-${Date.now()}`);
-					}
+					const generatedId = generateUniquePresetIdFromOriginalId(preset.id, {
+						existingIds: existingIds,
+						isValidId: (candidate) => this.isPresetIdFormatValid(candidate),
+						isIdAvailable: (candidate) => !this.getPresetById(candidate),
+					});
 					renamedPresets.push({ originalId: preset.id, newId: generatedId });
 					targetId = generatedId;
 				}
@@ -200,7 +200,7 @@ export class PresetManager {
 					fields: preset.fields.map((field) => cloneFrontmatterField(field)),
 				};
 
-				await this.settingsManager.addPreset(newPreset, saveOptions);
+				presetsToAppend.push(newPreset);
 				existingIds.add(targetId);
 
 				newlyAdded.push({
@@ -208,6 +208,10 @@ export class PresetManager {
 					name: newPreset.name,
 					fields: newPreset.fields.map((field) => cloneFrontmatterField(field)),
 				});
+			}
+
+			if (presetsToAppend.length > 0) {
+				await this.settingsManager.appendPresets(presetsToAppend, saveOptions);
 			}
 
 			appliedPresets = newlyAdded;
@@ -540,70 +544,17 @@ export class PresetManager {
 	}
 
 	private sanitizeImportedField(field: unknown, presetIndex: number, fieldIndex: number): FrontmatterField {
-		if (!field || typeof field !== 'object') {
+		try {
+			const sanitized = sanitizeFrontmatterField(field, { strict: true });
+			if (!sanitized) {
+				throw new Error('字段为空');
+			}
+			return sanitized;
+		} catch (error) {
+			const message = error instanceof Error ? error.message : '未知错误';
 			throw new PresetImportError(
-				`导入失败：第 ${presetIndex + 1} 个预设的第 ${fieldIndex + 1} 个字段格式无效`,
+				`导入失败：第 ${presetIndex + 1} 个预设的第 ${fieldIndex + 1} 个字段 ${message}`,
 			);
 		}
-
-		const candidate = field as Partial<FrontmatterField>;
-		const key = candidate.key?.trim();
-		const label = candidate.label?.trim();
-
-		if (!key) {
-			throw new PresetImportError(
-				`导入失败：第 ${presetIndex + 1} 个预设的第 ${fieldIndex + 1} 个字段缺少键名`,
-			);
-		}
-
-		if (!label) {
-			throw new PresetImportError(
-				`导入失败：第 ${presetIndex + 1} 个预设的第 ${fieldIndex + 1} 个字段缺少显示名称`,
-			);
-		}
-
-		const type = candidate.type ?? 'text';
-		if (!['text', 'select', 'date', 'multi-select'].includes(type)) {
-			throw new PresetImportError(
-				`导入失败：第 ${presetIndex + 1} 个预设的字段 "${key}" 类型不受支持`,
-			);
-		}
-
-		const defaultValue = this.normalizeFieldDefault(type, candidate.default);
-		const sanitizedField: FrontmatterField = {
-			key,
-			type,
-			label,
-			default: defaultValue,
-		};
-
-		if (Array.isArray(candidate.options) && candidate.options.length > 0) {
-			sanitizedField.options = candidate.options.map((option) => String(option));
-		}
-
-		if (candidate.useTemplaterTimestamp === true) {
-			sanitizedField.useTemplaterTimestamp = true;
-		}
-
-		return sanitizedField;
-	}
-
-	private normalizeFieldDefault(
-		type: FrontmatterField['type'],
-		rawDefault: unknown,
-	): FrontmatterFieldDefault {
-		if (type === 'multi-select') {
-			return normalizeStringArray(rawDefault);
-		}
-
-		if (typeof rawDefault === 'string') {
-			return rawDefault;
-		}
-
-		if (rawDefault === undefined || rawDefault === null) {
-			return '';
-		}
-
-		return String(rawDefault);
 	}
 }

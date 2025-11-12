@@ -1,384 +1,403 @@
 import { App, Modal, MarkdownView } from 'obsidian';
 import type NoteArchitect from '@core/plugin';
-import type { FrontmatterPreset, Template, TemplateInsertionResult, FrontmatterField } from '@types';
-import { prepareTemplateWithUserInput } from '@engine/TemplateEngine';
+import type { FrontmatterPreset, Template, FrontmatterField } from '@types';
 import { handleError } from '@core/error';
-import { notifyInfo, notifySuccess, notifyWarning } from '@utils/notify';
+import { notifyInfo, notifyWarning } from '@utils/notify';
 import { normalizeStringArray } from '@utils/data-transformer';
 import { convertFormDataToFrontmatter } from '@utils/frontmatter/convert';
-import { updateNoteFrontmatter } from '@utils/frontmatter-editor';
+import { getNoteMetadata } from '@utils/frontmatter-editor';
+import { executeTemplateInsertion } from '@actions/insert-template';
+import { executeUpdateFrontmatter } from '@actions/update-frontmatter';
 import { createMergedPreset } from './frontmatter/preset-field-merger';
+import { FrontmatterFormView } from './frontmatter/FrontmatterFormView';
+import { FrontmatterFormState } from './frontmatter/FrontmatterFormState';
+
+interface FrontmatterManagerModalOptions {
+	template?: Template;
+	presets: FrontmatterPreset[];
+	isUpdateMode?: boolean;
+}
+
+type FrontmatterUpdateMode = 'merge' | 'overwrite';
+
 
 export class FrontmatterManagerModal extends Modal {
-	private readonly plugin: NoteArchitect;
-	private readonly template: Template;
-	private readonly sourcePresets: FrontmatterPreset[];
-	private readonly mergedPreset: FrontmatterPreset;
-	private readonly sourcePresetIds: string[];
-	private readonly sourcePresetNames: string[];
-	private formData: Record<string, unknown>;
-	private readonly multiSelectFieldRefs: Map<string, HTMLElement> = new Map();
-	private readonly fieldContainerRefs: Map<string, HTMLElement> = new Map();
-	private readonly fieldErrorRefs: Map<string, HTMLElement> = new Map();
-	private readonly fieldInputRefs: Map<string, HTMLElement> = new Map();
-	private resolvedDefaults: Map<string, string | string[]> = new Map();
-	private templaterDefaultsSkipped: Set<string> = new Set();
-	private isResolving = true;
-	private touchedFieldKeys: Set<string> = new Set();
-	private currentFieldErrors: Record<string, string[]> = {};
+	static forTemplateInsertion(
+		app: App,
+		plugin: NoteArchitect,
+		template: Template,
+		presets: FrontmatterPreset[],
+	): FrontmatterManagerModal {
+		return new FrontmatterManagerModal(app, plugin, { template, presets });
+	}
 
-	constructor(app: App, plugin: NoteArchitect, template: Template, presets: FrontmatterPreset[]) {
+	static forFrontmatterUpdate(
+		app: App,
+		plugin: NoteArchitect,
+		options: { presets: FrontmatterPreset[] },
+	): FrontmatterManagerModal {
+		return new FrontmatterManagerModal(app, plugin, { presets: options.presets, isUpdateMode: true });
+	}
+
+	private readonly plugin: NoteArchitect;
+	private readonly template?: Template;
+	private readonly sourcePresets: FrontmatterPreset[];
+	private mergedPreset: FrontmatterPreset;
+	private readonly sourcePresetNames: string[];
+	private readonly isUpdateMode: boolean;
+	private frontmatterUpdateMode: FrontmatterUpdateMode;
+	private formContainerEl?: HTMLElement;
+	private confirmBtn?: HTMLButtonElement;
+	private presetSwitcherEl?: HTMLSelectElement;
+	private updateModeSelectEl?: HTMLSelectElement;
+	private formView?: FrontmatterFormView;
+	private formState?: FrontmatterFormState;
+	private isResolving = true;
+
+	constructor(app: App, plugin: NoteArchitect, options: FrontmatterManagerModalOptions) {
 		super(app);
 		this.plugin = plugin;
-		this.template = template;
-		this.sourcePresets = presets.length > 0 ? presets : [];
-		const { mergedPreset, sourcePresetIds } = createMergedPreset(this.sourcePresets);
-		this.mergedPreset = mergedPreset;
-		this.sourcePresetIds = sourcePresetIds;
+		this.template = options.template;
+		this.isUpdateMode = Boolean(options.isUpdateMode);
+		this.sourcePresets = options.presets.length > 0 ? options.presets : [];
+		if (this.sourcePresets.length === 0) {
+			throw new Error('FrontmatterManagerModal 需要至少一个 frontmatter 预设');
+		}
+		if (!this.isUpdateMode && !this.template) {
+			throw new Error('模板插入模式必须提供 template');
+		}
+		if (this.isUpdateMode) {
+			// 在更新模式下，尝试加载上次使用的预设
+			const lastUsedId = this.plugin.settings.lastUsedPresetForUpdate;
+			const lastUsedPreset = lastUsedId
+				? this.sourcePresets.find(p => p.id === lastUsedId)
+				: undefined;
+
+			if (lastUsedPreset) {
+				this.mergedPreset = lastUsedPreset;
+			} else {
+				// 如果上次使用的预设不存在，默认选择第一个
+				[this.mergedPreset] = this.sourcePresets;
+			}
+		} else {
+			const { mergedPreset } = createMergedPreset(this.sourcePresets);
+			this.mergedPreset = mergedPreset;
+		}
 		this.sourcePresetNames = this.sourcePresets.map(preset => preset.name);
-		this.formData = {};
+		this.frontmatterUpdateMode = this.determineInitialUpdateMode();
 	}
 
 	onOpen() {
 		const { contentEl } = this;
 
-		// 设置模态窗口大小
 		this.modalEl.style.width = '90vw';
 		this.modalEl.style.maxWidth = '650px';
 		this.modalEl.style.height = 'auto';
 		this.modalEl.style.maxHeight = '85vh';
 
-		// 创建标题
 		contentEl.createEl('h2', {
-			text: `配置模板: ${this.template.name}`,
+			text: this.getModalTitle(),
 			cls: 'note-architect-form-title'
 		});
 
-		// 创建主容器
 		const mainContainer = contentEl.createDiv('note-architect-frontmatter-manager-container');
-
-		// 创建说明区域
 		const descriptionContainer = mainContainer.createDiv('note-architect-form-description');
-		const descriptionText = this.sourcePresetNames.length > 1
-			? `此模板引用了多个预设（${this.sourcePresetNames.join('、')}），请填写以下字段：`
-			: `此模板引用了预设 "${this.mergedPreset.name}"，请填写以下字段：`;
 		descriptionContainer.createEl('p', {
-			text: descriptionText,
+			text: this.getDescriptionText(),
 			cls: 'note-architect-form-description-text'
 		});
+		this.renderUpdateContextControls(descriptionContainer);
 
-		// 创建表单容器
-		const formContainer = mainContainer.createDiv('note-architect-form-container');
+		this.formContainerEl = mainContainer.createDiv('note-architect-form-container');
 
-		// 创建操作按钮容器
 		const actionsContainer = mainContainer.createDiv('note-architect-form-actions');
-
-		// 取消按钮
 		const cancelBtn = actionsContainer.createEl('button', {
 			text: '取消',
 			cls: ''
 		});
 		cancelBtn.onclick = () => this.handleCancel();
 
-		// 确认按钮（暂时禁用，等 Templater 解析完成后启用）
-		const confirmBtn = actionsContainer.createEl('button', {
-			text: '确认插入',
+		this.confirmBtn = actionsContainer.createEl('button', {
+			text: this.getConfirmButtonLabel(),
 			cls: 'mod-cta'
 		});
-		confirmBtn.disabled = true;
-		confirmBtn.onclick = () => this.handleConfirm();
+		this.confirmBtn.disabled = true;
+		this.confirmBtn.onclick = () => this.handleConfirm();
 
-		// 先解析 Templater 默认值，再渲染表单
-		this.parseTemplaterDefaults().then(() => {
+		// 初始化 FrontmatterFormState 和 FrontmatterFormView
+		this.initializeFormComponents();
+
+		this.showFormLoadingState('正在解析预设默认值…');
+		this.resolveDefaultsAndRender();
+	}
+
+	/**
+	 * 初始化表单组件（状态管理和视图）
+	 */
+	private initializeFormComponents(): void {
+		// 初始化 FrontmatterFormState
+		this.formState = new FrontmatterFormState(this.mergedPreset, this.plugin.presetManager);
+		this.formState.initialize({});
+
+		// 初始化 FrontmatterFormView
+		// 预设变化时需要重新创建 FormView 实例
+		if (!this.formView) {
+			this.formView = new FrontmatterFormView({
+				containerEl: this.formContainerEl!,
+				preset: this.mergedPreset,
+				initialData: {},
+				onFieldChange: (key: string, value: unknown) => {
+					// 通知状态管理器更新数据
+					this.formState?.setFieldValue(key, value, true);
+					// 同步更新视图中的错误显示
+					const formView = this.formView;
+					const formState = this.formState;
+					if (formView && formState) {
+						formView.displayErrors(formState.getErrors());
+					}
+				},
+				onFieldBlur: (key: string) => {
+					// 标记字段为已触摸
+					this.formState?.setFieldTouched(key);
+					// 同步更新视图中的错误显示
+					const formView = this.formView;
+					const formState = this.formState;
+					if (formView && formState) {
+						formView.displayErrors(formState.getErrors());
+					}
+				},
+				onMultiSelectChange: (key: string) => {
+					// 标记字段为已触摸
+					this.formState?.setFieldTouched(key);
+					// 同步更新视图中的错误显示
+					const formView = this.formView;
+					const formState = this.formState;
+					if (formView && formState) {
+						formView.displayErrors(formState.getErrors());
+					}
+				}
+			});
+		}
+	}
+
+	private getModalTitle(): string {
+		if (this.isUpdateMode) {
+			return '更新当前笔记的 Frontmatter';
+		}
+		return `配置模板: ${this.template?.name ?? '未命名模板'}`;
+	}
+
+	private getDescriptionText(): string {
+		if (this.isUpdateMode) {
+			if (this.sourcePresets.length === 1) {
+				return `请基于预设 "${this.sourcePresets[0].name}" 填写您想应用到当前笔记的 Frontmatter 字段。这些新值将根据您选择的应用模式（合并或覆盖）写入笔记。`;
+			}
+			return '请选择要应用的预设，并填写以下字段：';
+		}
+		if (this.sourcePresetNames.length > 1) {
+			return `此模板引用了多个预设（${this.sourcePresetNames.join('、')}），请填写以下字段：`;
+		}
+		return `此模板引用了预设 "${this.mergedPreset.name}"，请填写以下字段：`;
+	}
+
+	private getConfirmButtonLabel(): string {
+		return this.isUpdateMode ? '确认更新' : '确认插入';
+	}
+
+	private renderUpdateContextControls(container: HTMLElement): void {
+		if (!this.isUpdateMode) {
+			return;
+		}
+
+		if (this.sourcePresets.length > 1) {
+			const presetRow = container.createDiv();
+			presetRow.createEl('label', {
+				text: '选择预设',
+				cls: 'note-architect-form-label'
+			});
+			const selectEl = presetRow.createEl('select', {
+				cls: 'note-architect-form-select'
+			}) as HTMLSelectElement;
+			this.sourcePresets.forEach((preset) => {
+				selectEl.createEl('option', {
+					value: preset.id,
+					text: preset.name
+				});
+			});
+			selectEl.value = this.mergedPreset.id;
+			selectEl.onchange = () => this.handlePresetSelectionChange(selectEl.value);
+			this.presetSwitcherEl = selectEl;
+		} else {
+			container.createEl('p', {
+				cls: 'note-architect-form-description-text',
+				text: `将基于预设 "${this.mergedPreset.name}" 应用 Frontmatter 字段到当前笔记。`
+			});
+		}
+
+		const modeRow = container.createDiv();
+		modeRow.createEl('label', {
+			text: '应用模式',
+			cls: 'note-architect-form-label'
+		});
+		const modeSelect = modeRow.createEl('select', {
+			cls: 'note-architect-form-select'
+		}) as HTMLSelectElement;
+		modeSelect.createEl('option', {
+			value: 'merge',
+			text: '合并（保留未覆盖字段）'
+		});
+		modeSelect.createEl('option', {
+			value: 'overwrite',
+			text: '覆盖（仅保留以下字段）'
+		});
+		modeSelect.value = this.frontmatterUpdateMode;
+		modeSelect.onchange = () => {
+			this.frontmatterUpdateMode = modeSelect.value as FrontmatterUpdateMode;
+		};
+		modeRow.createEl('small', {
+			cls: 'setting-item-description',
+			text: '合并将保留笔记中未被表单覆盖的字段；覆盖将仅保留当前表单字段。'
+		});
+		this.updateModeSelectEl = modeSelect;
+	}
+
+	private showFormLoadingState(message: string): void {
+		const container = this.formContainerEl;
+		if (!container) {
+			return;
+		}
+		container.empty();
+		container.createEl('p', {
+			text: message,
+			cls: 'setting-item-description'
+		});
+	}
+
+	private resolveDefaultsAndRender(): void {
+		this.parseTemplaterDefaults().then(([resolvedDefaults, templaterDefaultsSkipped]: [Map<string, string | string[]>, Set<string>]) => {
+			// 将解析结果设置到状态管理器
+			if (this.formState) {
+				this.formState.setResolvedDefaults(resolvedDefaults, templaterDefaultsSkipped);
+			}
+
+			// 同时设置到视图（用于预览）
+			if (this.formView) {
+				this.formView.setResolvedDefaults(resolvedDefaults, templaterDefaultsSkipped);
+			}
+
 			this.isResolving = false;
-			this.renderFormFields(formContainer);
-			confirmBtn.disabled = false;
-		}).catch((error) => {
-			handleError(error, {
+			this.renderFormFields(this.formContainerEl);
+			if (this.confirmBtn) {
+				this.confirmBtn.disabled = false;
+			}
+		}).catch((error: unknown) => {
+			handleError(error as Error, {
 				context: 'FrontmatterManagerModal.parseTemplaterDefaults',
 			});
 			notifyWarning('部分默认值解析失败，已使用原始字段默认值。');
 			this.isResolving = false;
-			this.renderFormFields(formContainer);
-			confirmBtn.disabled = false;
+			this.renderFormFields(this.formContainerEl);
+			if (this.confirmBtn) {
+				this.confirmBtn.disabled = false;
+			}
 		});
+	}
+
+	private handlePresetSelectionChange(nextPresetId: string): void {
+		if (!this.isUpdateMode) {
+			return;
+		}
+		const nextPreset = this.sourcePresets.find(preset => preset.id === nextPresetId);
+		if (!nextPreset || nextPreset.id === this.mergedPreset.id) {
+			return;
+		}
+		this.mergedPreset = nextPreset;
+		this.resetFormStateForPreset();
+		// 强制重新创建表单视图以加载新预设的配置
+		this.formView = new FrontmatterFormView({
+			containerEl: this.formContainerEl!,
+			preset: this.mergedPreset,
+			initialData: {},
+			onFieldChange: (key, value) => {
+				this.formState?.setFieldValue(key, value, true);
+				if (this.formView && this.formState) {
+					this.formView.displayErrors(this.formState.getErrors());
+				}
+			},
+			onFieldBlur: (key) => {
+				this.formState?.setFieldTouched(key);
+				if (this.formView && this.formState) {
+					this.formView.displayErrors(this.formState.getErrors());
+				}
+			},
+			onMultiSelectChange: (key) => {
+				this.formState?.setFieldTouched(key);
+				if (this.formView && this.formState) {
+					this.formView.displayErrors(this.formState.getErrors());
+				}
+			}
+		});
+		if (this.confirmBtn) {
+			this.confirmBtn.disabled = true;
+		}
+		this.showFormLoadingState('正在切换预设…');
+		this.resolveDefaultsAndRender();
+	}
+
+	/**
+	 * 重置表单状态
+	 */
+	private resetFormStateForPreset(): void {
+		if (this.formState) {
+			this.formState.switchPreset(this.mergedPreset);
+		}
+		this.isResolving = true;
+	}
+
+	private determineInitialUpdateMode(): FrontmatterUpdateMode {
+		if (!this.isUpdateMode) {
+			return 'merge';
+		}
+		const metadata = getNoteMetadata(this.app);
+		const hasFrontmatter = Object.keys(metadata.frontmatter ?? {}).length > 0;
+		return hasFrontmatter ? 'merge' : 'overwrite';
 	}
 
 	/**
 	 * 渲染表单字段
 	 */
-	private renderFormFields(containerEl: HTMLElement): void {
-		containerEl.empty();
-		this.multiSelectFieldRefs.clear();
-		this.fieldContainerRefs.clear();
-		this.fieldErrorRefs.clear();
-		this.fieldInputRefs.clear();
-
-		this.mergedPreset.fields.forEach((field) => {
-			const fieldContainer = containerEl.createDiv('note-architect-form-field');
-			fieldContainer.setAttr('data-field-key', field.key);
-			this.fieldContainerRefs.set(field.key, fieldContainer);
-
-			// 字段标签
-			fieldContainer.createEl('label', {
-				text: `${field.label}:`,
-				cls: 'note-architect-form-label'
-			});
-
-			// 获取解析后的默认值
-			const resolvedDefault = this.getResolvedDefault(field);
-			const isTemplaterDefaultSkipped = this.templaterDefaultsSkipped.has(field.key);
-			const isTemplaterAutofill = field.type === 'date' && field.useTemplaterTimestamp === true;
-			const allowedOptions = this.buildAllowedOptionsSet(field.options);
-
-			if (!(field.key in this.formData)) {
-				if (field.type === 'multi-select') {
-					this.formData[field.key] = normalizeStringArray(
-						resolvedDefault,
-						allowedOptions,
-					);
-				} else {
-					this.formData[field.key] = typeof resolvedDefault === 'string' ? resolvedDefault : '';
-				}
-			}
-
-			let inputEl: HTMLInputElement | HTMLSelectElement | undefined;
-
-			if (isTemplaterAutofill) {
-				const previewValue = this.coerceToString(this.formData[field.key]);
-				const previewInput = fieldContainer.createEl('input', {
-					type: 'text',
-					cls: 'note-architect-form-input note-architect-form-input--readonly'
-				}) as HTMLInputElement;
-				previewInput.value = previewValue;
-				previewInput.readOnly = true;
-				previewInput.tabIndex = -1;
-
-				const hintText = previewValue.includes('<%')
-					? 'Templater 未执行，将写入原始表达式。'
-					: '已自动填入当前时间，保存时将写入以上格式。';
-				fieldContainer.createEl('small', {
-					cls: 'setting-item-description',
-					text: hintText
-				});
-
-				if (isTemplaterDefaultSkipped) {
-					fieldContainer.createEl('small', {
-						cls: 'setting-item-description',
-						text: '检测到 Templater 表达式，此处不会预执行。'
-					});
-				}
-			} else {
-				switch (field.type) {
-					case 'text': {
-						const input = fieldContainer.createEl('input', {
-							type: 'text',
-							cls: 'note-architect-form-input'
-						}) as HTMLInputElement;
-						inputEl = input;
-						this.fieldInputRefs.set(field.key, input);
-						break;
-					}
-
-					case 'date': {
-						const input = fieldContainer.createEl('input', {
-							type: 'date',
-							cls: 'note-architect-form-input'
-						}) as HTMLInputElement;
-						inputEl = input;
-						this.fieldInputRefs.set(field.key, input);
-						break;
-					}
-
-					case 'select': {
-						const selectEl = fieldContainer.createEl('select', {
-							cls: 'note-architect-form-select'
-						}) as HTMLSelectElement;
-						inputEl = selectEl;
-						this.fieldInputRefs.set(field.key, selectEl);
-
-						selectEl.createEl('option', {
-							value: '',
-							text: '请选择...'
-						});
-
-						if (field.options) {
-							field.options.forEach(option => {
-								selectEl.createEl('option', {
-									value: option,
-									text: option
-								});
-							});
-						}
-						break;
-					}
-
-					case 'multi-select': {
-						const multiSelectContainer = fieldContainer.createDiv('note-architect-multi-select-container');
-						this.multiSelectFieldRefs.set(field.key, multiSelectContainer);
-
-						const currentSelection = normalizeStringArray(
-							this.formData[field.key] ?? resolvedDefault,
-							allowedOptions,
-						);
-						this.formData[field.key] = currentSelection;
-
-						if (field.options && field.options.length > 0) {
-							field.options.forEach(option => {
-								const normalizedOption = option.trim();
-								const optionContainer = multiSelectContainer.createDiv('note-architect-checkbox-container');
-
-								const checkbox = optionContainer.createEl('input', {
-									type: 'checkbox',
-									value: normalizedOption,
-									cls: 'note-architect-form-checkbox'
-								}) as HTMLInputElement;
-
-								checkbox.addEventListener('change', () => {
-									this.collectMultiSelectData();
-									this.handleFieldInteraction(field.key);
-								});
-
-								if (currentSelection.includes(normalizedOption)) {
-									checkbox.checked = true;
-								}
-
-								optionContainer.createEl('label', {
-									text: normalizedOption,
-									cls: 'note-architect-checkbox-label'
-								});
-							});
-						} else {
-							multiSelectContainer.createEl('small', {
-								text: '暂无可用选项',
-								cls: 'setting-item-description'
-							});
-						}
-						break;
-					}
-
-					default: {
-						const input = fieldContainer.createEl('input', {
-							type: 'text',
-							cls: 'note-architect-form-input'
-						}) as HTMLInputElement;
-						inputEl = input;
-						this.fieldInputRefs.set(field.key, input);
-						break;
-					}
-				}
-
-				if (inputEl && (field.type === 'text' || field.type === 'date' || field.type === 'select')) {
-					if (field.type === 'text' || field.type === 'date') {
-						(inputEl as HTMLInputElement).value = this.coerceToString(this.formData[field.key]);
-					} else if (field.type === 'select') {
-						const selectEl = inputEl as HTMLSelectElement;
-						const currentValue = this.coerceToString(this.formData[field.key]);
-						const matchingOption = Array.from(selectEl.options).find(option => option.value === currentValue);
-						if (matchingOption) {
-							selectEl.value = currentValue;
-						}
-					}
-
-					inputEl.addEventListener('input', () => {
-						this.formData[field.key] = field.type === 'select'
-							? inputEl!.value
-							: (inputEl as HTMLInputElement).value;
-					});
-
-					if (field.type === 'select') {
-						inputEl.addEventListener('change', () => {
-							this.handleFieldInteraction(field.key);
-						});
-					} else {
-						inputEl.addEventListener('blur', () => {
-							this.handleFieldInteraction(field.key);
-						});
-					}
-				}
-			}
-
-			if (isTemplaterDefaultSkipped) {
-				fieldContainer.createEl('small', {
-					cls: 'setting-item-description',
-					text: '检测到 Templater 表达式，此处不会预执行。'
-				});
-			}
-
-			const errorEl = fieldContainer.createDiv('note-architect-form-error is-hidden');
-			errorEl.setAttr('role', 'alert');
-			this.fieldErrorRefs.set(field.key, errorEl);
-			this.updateFieldErrorUI(field.key);
-		});
-
-		// 在所有字段渲染完成后，收集一次多选框数据以捕获默认选中的值
-		setTimeout(() => {
-			this.collectMultiSelectData();
-		}, 0);
-		this.applyFieldErrors();
-	}
-
-	private handleFieldInteraction(fieldKey: string): void {
-		if (!fieldKey || this.isResolving) {
+	private renderFormFields(containerEl?: HTMLElement): void {
+		const target = containerEl ?? this.formContainerEl;
+		if (!target) {
 			return;
 		}
-		this.touchedFieldKeys.add(fieldKey);
-		this.runInlineValidation();
-	}
 
-	private runInlineValidation(options?: { showAll?: boolean }): void {
-		if (this.isResolving) {
-			return;
-		}
-		const validation = this.plugin.presetManager.validateFormData(this.mergedPreset, this.formData);
-		this.updateFieldValidationErrors(validation.fieldErrors, options);
-	}
+		// 更新 FormView 的预设（如果需要）
+		if (this.formView) {
+			// 渲染表单视图
+			this.formView.render();
 
-	private updateFieldValidationErrors(
-		errors: Record<string, string[]>,
-		options?: { showAll?: boolean },
-	): void {
-		this.currentFieldErrors = errors;
-		this.applyFieldErrors(options);
-	}
-
-	private applyFieldErrors(options?: { showAll?: boolean }): void {
-		for (const fieldKey of this.fieldContainerRefs.keys()) {
-			this.updateFieldErrorUI(fieldKey, options);
-		}
-	}
-
-	private updateFieldErrorUI(fieldKey: string, options?: { showAll?: boolean }): void {
-		const container = this.fieldContainerRefs.get(fieldKey);
-		const errorEl = this.fieldErrorRefs.get(fieldKey);
-		if (!container || !errorEl) {
-			return;
-		}
-		const messages = this.currentFieldErrors[fieldKey] ?? [];
-		const shouldShow = options?.showAll === true || this.touchedFieldKeys.has(fieldKey);
-		const hasErrors = shouldShow && messages.length > 0;
-		errorEl.setText(hasErrors ? messages.join(' ') : '');
-		errorEl.toggleClass('is-hidden', !hasErrors);
-		container.toggleClass('note-architect-form-field--error', hasErrors);
-
-		const inputEl = this.fieldInputRefs.get(fieldKey);
-		if (inputEl) {
-			inputEl.toggleClass('note-architect-form-input--error', hasErrors);
-		} else {
-			const multiSelectContainer = this.multiSelectFieldRefs.get(fieldKey);
-			multiSelectContainer?.toggleClass('note-architect-multi-select-container--error', hasErrors);
+			// 同步当前错误状态到视图
+			if (this.formState) {
+				this.formView.displayErrors(this.formState.getErrors());
+			}
 		}
 	}
 
 	private markAllFieldsTouched(): void {
-		this.touchedFieldKeys = new Set(this.mergedPreset.fields.map(field => field.key));
+		if (this.formState) {
+			this.formState.markAllFieldsTouched();
+		}
+		this.formView?.markAllFieldsTouched();
 	}
 
 	/**
 	 * 收集默认值，执行 Templater 表达式解析
 	 */
-	private async parseTemplaterDefaults(): Promise<void> {
-		this.templaterDefaultsSkipped.clear();
+	private async parseTemplaterDefaults(): Promise<[Map<string, string | string[]>, Set<string>]> {
+		const templaterDefaultsSkipped = new Set<string>();
+		const resolvedDefaults = new Map<string, string | string[]>();
+		const activePreset = this.mergedPreset;
 
 		const shouldParseTemplater = this.plugin.settings.enableTemplaterIntegration;
 		let templaterInitFailed = false;
@@ -393,18 +412,18 @@ export class FrontmatterManagerModal extends Modal {
 				const { ObsidianTemplaterAdapter } = await import('@engine/ObsidianTemplaterAdapter');
 				templater = new ObsidianTemplaterAdapter(this.app);
 				return templater;
-			} catch (error) {
+			} catch (error: unknown) {
 				console.warn('Note Architect: 初始化 Templater 适配器失败', error);
 				templaterInitFailed = true;
 				return null;
 			}
 		};
 
-		for (const field of this.mergedPreset.fields) {
+		for (const field of activePreset.fields) {
 			const allowedOptions = this.buildAllowedOptionsSet(field.options);
 			if (field.type === 'multi-select') {
 				const normalized = normalizeStringArray(field.default, allowedOptions);
-				this.resolvedDefaults.set(field.key, normalized);
+				resolvedDefaults.set(field.key, normalized);
 				continue;
 			}
 
@@ -412,22 +431,22 @@ export class FrontmatterManagerModal extends Modal {
 
 			// 默认值不包含 Templater 表达式，直接存储
 			if (!defaultValue.includes('<%')) {
-				this.resolvedDefaults.set(field.key, defaultValue);
+				resolvedDefaults.set(field.key, defaultValue);
 				continue;
 			}
 
 			// 包含 Templater 表达式，但未启用解析或缺少上下文时，记为跳过
 			if (!shouldParseTemplater) {
-				this.templaterDefaultsSkipped.add(field.key);
-				this.resolvedDefaults.set(field.key, defaultValue);
+				templaterDefaultsSkipped.add(field.key);
+				resolvedDefaults.set(field.key, defaultValue);
 				continue;
 			}
 
 			const activeFile = this.app.workspace.getActiveFile();
 			if (!activeFile) {
 				console.warn(`Note Architect: 无活动文件，跳过字段 ${field.key} 的 Templater 默认值解析`);
-				this.templaterDefaultsSkipped.add(field.key);
-				this.resolvedDefaults.set(field.key, defaultValue);
+				templaterDefaultsSkipped.add(field.key);
+				resolvedDefaults.set(field.key, defaultValue);
 				continue;
 			}
 
@@ -441,36 +460,38 @@ export class FrontmatterManagerModal extends Modal {
 						path: '' // 空字符串表示没有模板文件路径
 					};
 					const resolvedValue = await adapter.processTemplate(tempTemplate);
-					this.resolvedDefaults.set(field.key, resolvedValue);
+					resolvedDefaults.set(field.key, resolvedValue);
 				} else {
-					this.templaterDefaultsSkipped.add(field.key);
-					this.resolvedDefaults.set(field.key, defaultValue);
+					templaterDefaultsSkipped.add(field.key);
+					resolvedDefaults.set(field.key, defaultValue);
 				}
-			} catch (error) {
+			} catch (error: unknown) {
 				console.warn(`Note Architect: 解析字段 ${field.key} 的 Templater 表达式失败`, error);
-				this.templaterDefaultsSkipped.add(field.key);
-				this.resolvedDefaults.set(field.key, defaultValue);
+				templaterDefaultsSkipped.add(field.key);
+				resolvedDefaults.set(field.key, defaultValue);
 			}
+		}
+
+		return [resolvedDefaults, templaterDefaultsSkipped];
+	}
+
+	/**
+	 * 收集多选框数据
+	 */
+	private collectMultiSelectData(): void {
+		// 此方法已迁移到 FormView，保留用于向后兼容
+		// 在 handleConfirm 中调用以确保数据同步
+		if (this.formView) {
+			// FormView 会在回调中自动更新数据
+			// 此方法留空以保持接口兼容
 		}
 	}
 
-	private getResolvedDefault(field: FrontmatterField): string | string[] {
-		const allowedOptions = this.buildAllowedOptionsSet(field.options);
-		if (this.resolvedDefaults.has(field.key)) {
-			const stored = this.resolvedDefaults.get(field.key);
-			if (field.type === 'multi-select') {
-				return normalizeStringArray(stored, allowedOptions);
-			}
-			return this.coerceToString(stored);
-		}
-
-		if (field.type === 'multi-select') {
-			return normalizeStringArray(field.default, allowedOptions);
-		}
-
-		return this.coerceToString(field.default);
-	}
-
+	/**
+	 * 构建允许选项集合（用于默认值解析）
+	 * @param options 选项列表
+	 * @returns 选项集合
+	 */
 	private buildAllowedOptionsSet(options?: string[]): Set<string> | undefined {
 		if (!Array.isArray(options)) {
 			return undefined;
@@ -482,6 +503,11 @@ export class FrontmatterManagerModal extends Modal {
 		return new Set(normalized);
 	}
 
+	/**
+	 * 强制转换为字符串（用于默认值解析）
+	 * @param value 要转换的值
+	 * @returns 字符串
+	 */
 	private coerceToString(value: unknown): string {
 		if (typeof value === 'string') {
 			return value;
@@ -492,28 +518,6 @@ export class FrontmatterManagerModal extends Modal {
 		}
 
 		return String(value);
-	}
-
-	
-	/**
-	 * 收集多选框数据
-	 */
-	private collectMultiSelectData(): void {
-		for (const [fieldKey, container] of this.multiSelectFieldRefs.entries()) {
-			const checkboxes = container.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-			const selectedValues: string[] = [];
-
-			checkboxes.forEach((checkbox) => {
-				if (checkbox.checked && checkbox.value) {
-					const value = checkbox.value.trim();
-					if (value) {
-						selectedValues.push(value);
-					}
-				}
-			});
-
-			this.formData[fieldKey] = selectedValues;
-		}
 	}
 
 	
@@ -533,133 +537,113 @@ export class FrontmatterManagerModal extends Modal {
 		notifyWarning(`${header}\n${errors.join('\n')}`, { prefix: false });
 	}
 
-	private handleInsertionResult(result: TemplateInsertionResult): void {
-		if (result.templaterError) {
-			notifyWarning(`${result.templaterError}，将使用原始模板内容进行插入`);
-		}
-
-		if (result.fallbackToBodyOnly) {
-			notifyWarning('Frontmatter 更新失败，已插入模板正文内容。');
-			return;
-		}
-
-		const details: string[] = [];
-		if (result.usedTemplater) {
-			details.push('并使用 Templater 处理');
-		}
-		if (result.mergeCount > 0) {
-			details.push(`已合并 ${result.mergeCount} 个 frontmatter 字段`);
-		}
-
-		const suffix = details.length > 0 ? `（${details.join('，')}）` : '';
-		notifySuccess(`模板 "${this.template.name}" 已插入${suffix}。`);
-	}
-
-	private handleInsertionFailure(error: unknown): void {
-		const normalizedError = handleError(error, {
-			context: 'FrontmatterManagerModal.handleConfirm',
-			userMessage: '插入模板失败，请稍后重试。',
-		});
-
-		const message = normalizedError.message || '';
-		if (message.includes('编辑器')) {
-			notifyInfo('提示：请确保在 Markdown 文件中使用此功能');
-		} else if (message.includes('Templater')) {
-			notifyInfo('提示：可以尝试禁用 Templater 集成后重试');
-		}
-	}
-
-	/**
-	 * 处理确认按钮点击事件 - 核心逻辑实现
-	 * Task 1: 表单数据收集和预处理
-	 * Task 2-6: 完整的模板插入流程
-	 */
 	private async handleConfirm(): Promise<void> {
+		if (!this.formState) {
+			throw new Error('表单状态管理器未初始化');
+		}
+
+		// 收集多选框数据（通过视图同步）
 		this.collectMultiSelectData();
 
-		const validation = this.plugin.presetManager.validateFormData(this.mergedPreset, this.formData);
+		// 使用状态管理器进行验证
+		const validation = this.formState.validate();
+
 		if (!validation.isValid) {
 			this.markAllFieldsTouched();
-			this.updateFieldValidationErrors(validation.fieldErrors, { showAll: true });
+			this.formView?.displayErrors(validation.fieldErrors);
 			this.notifyValidationFailure(validation.errors);
 			return;
 		}
 
+		// 获取表单数据并转换
+		const formData = this.formState.getData();
+		const userFrontmatter = convertFormDataToFrontmatter(this.mergedPreset, formData);
+
 		try {
-			const userFrontmatter = convertFormDataToFrontmatter(this.mergedPreset, this.formData);
-			const preparation = await prepareTemplateWithUserInput(
+			if (this.isUpdateMode) {
+				await this.handleUpdateFrontmatter(userFrontmatter);
+			} else {
+				await this.handleInsertTemplate(userFrontmatter);
+			}
+		} catch (error) {
+			// 错误处理已在 handleInsertTemplate 和 handleUpdateFrontmatter 中完成
+			throw error;
+		}
+	}
+
+	private async handleInsertTemplate(userFrontmatter: Record<string, unknown>): Promise<void> {
+		const template = this.template;
+		if (!template) {
+			throw new Error('未找到可用模板，无法执行插入操作');
+		}
+
+		try {
+			await executeTemplateInsertion(
 				this.app,
 				this.plugin,
-				this.template,
+				template,
 				this.mergedPreset,
 				userFrontmatter,
 			);
-
-			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-			if (!activeView || !activeView.editor) {
-				throw new Error('无法获取当前编辑器，请确保在 Markdown 文件中使用此功能');
-			}
-
-			const editor = activeView.editor;
-			let templateBodyInserted = false;
-
-			try {
-				if (preparation.hasTemplateBody) {
-					editor.replaceSelection(preparation.templateBody);
-					templateBodyInserted = true;
-				}
-
-				updateNoteFrontmatter(
-					editor,
-					preparation.mergedFrontmatter,
-					preparation.noteMetadata.position,
-				);
-
-				const result: TemplateInsertionResult = {
-					usedTemplater: preparation.usedTemplater,
-					templaterError: preparation.templaterError,
-					mergedFrontmatter: preparation.mergedFrontmatter,
-					mergeCount: preparation.mergeCount,
-					frontmatterUpdated: true,
-					templateBodyInserted,
-					fallbackToBodyOnly: false,
-				};
-
-				this.handleInsertionResult(result);
-				await this.plugin.addRecentTemplate(this.template.id);
-				this.close();
-			} catch (error) {
-				console.error('Note Architect: 插入操作失败', error);
-
-				try {
-					editor.replaceSelection(preparation.templateBody);
-					templateBodyInserted = preparation.hasTemplateBody;
-
-					const fallbackResult: TemplateInsertionResult = {
-						usedTemplater: preparation.usedTemplater,
-						templaterError: preparation.templaterError,
-						mergedFrontmatter: preparation.mergedFrontmatter,
-						mergeCount: preparation.mergeCount,
-						frontmatterUpdated: false,
-						templateBodyInserted,
-						fallbackToBodyOnly: true,
-					};
-
-					this.handleInsertionResult(fallbackResult);
-					await this.plugin.addRecentTemplate(this.template.id);
-					this.close();
-				} catch (fallbackError) {
-					console.error('Note Architect: 回退插入也失败', fallbackError);
-					throw new Error('模板插入完全失败，请手动复制模板内容');
-				}
-			}
+			this.close();
 		} catch (error) {
-			this.handleInsertionFailure(error);
+			const normalizedError = handleError(error, {
+				context: 'FrontmatterManagerModal.handleConfirm',
+				userMessage: '插入模板失败，请稍后重试。',
+			});
+
+			const message = normalizedError.message || '';
+			if (message.includes('编辑器')) {
+				notifyInfo('提示：请确保在 Markdown 文件中使用此功能');
+			} else if (message.includes('Templater')) {
+				notifyInfo('提示：可以尝试禁用 Templater 集成后重试');
+			}
+			throw error;
+		}
+	}
+
+	private async handleUpdateFrontmatter(userFrontmatter: Record<string, unknown>): Promise<void> {
+		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (!activeView || !activeView.editor) {
+			throw new Error('无法获取当前编辑器，请确保在 Markdown 文件中使用此功能');
+		}
+
+		try {
+			await executeUpdateFrontmatter(
+				this.app,
+				activeView.editor,
+				this.mergedPreset,
+				userFrontmatter,
+				this.frontmatterUpdateMode,
+			);
+			// 成功更新后，保存最后使用的预设ID
+			await this.plugin.setLastUsedPresetForUpdate(this.mergedPreset.id);
+			this.close();
+		} catch (error) {
+			const normalizedError = handleError(error, {
+				context: 'FrontmatterManagerModal.handleUpdateFrontmatter',
+				userMessage: '更新 Frontmatter 失败，请稍后重试。',
+			});
+
+			const message = normalizedError.message || '';
+			if (message.includes('编辑器')) {
+				notifyInfo('提示：请确保打开一个 Markdown 笔记后再执行此命令');
+			}
+			throw error;
 		}
 	}
 
 	onClose() {
 		const { contentEl } = this;
 		contentEl.empty();
+
+		// 清理 FormView
+		if (this.formView) {
+			this.formView.destroy();
+			this.formView = undefined;
+		}
+
+		// 清理 FormState
+		this.formState = undefined;
 	}
 }

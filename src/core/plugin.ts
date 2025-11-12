@@ -73,4 +73,10 @@ export default class NoteArchitect extends Plugin {
 		await this.settingsManager.updateTemplateFolderPath(path, saveOptions);
 		this.settings = this.settingsManager.getSettings();
 	}
+
+	async setLastUsedPresetForUpdate(presetId: string): Promise<void> {
+		const saveOptions = this.settingsFacade?.getDefaultSaveOptions();
+		await this.settingsManager.setLastUsedPresetForUpdate(presetId, saveOptions);
+		this.settings = this.settingsManager.getSettings();
+	}
 }

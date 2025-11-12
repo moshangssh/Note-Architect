@@ -1,1 +1,1 @@
-模板选择模态搜索已改为缓存模板名称小写形式，并对正文小写转换按需懒加载；刷新模板列表时会重建缓存以避免重复 toLowerCase 导致的输入卡顿。
+模板选择模态的搜索直接对模板名称/正文执行 toLowerCase，不再维护缓存；searchContentEnabled 仍用于控制正文匹配，setTemplates 只负责更新 templates。

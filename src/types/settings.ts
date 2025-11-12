@@ -25,6 +25,7 @@ export interface NoteArchitectSettings {
   defaultDateFormat: string;
   recentlyUsedTemplates: string[];
   enableDynamicPresetSelection: boolean;
+  lastUsedPresetForUpdate?: string;
 }
 
 export const DEFAULT_SETTINGS: NoteArchitectSettings = {
@@ -34,4 +35,5 @@ export const DEFAULT_SETTINGS: NoteArchitectSettings = {
   defaultDateFormat: 'YYYYMMDDHHmmss',
   recentlyUsedTemplates: [],
   enableDynamicPresetSelection: true,
+  lastUsedPresetForUpdate: undefined,
 };

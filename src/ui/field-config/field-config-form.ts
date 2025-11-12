@@ -50,7 +50,7 @@ export class FieldConfigForm {
 	 */
 	render(containerEl: HTMLElement): void {
 		this.containerEl = containerEl;
-		this.containerEl.addClass('note-architect-field-config');
+		this.containerEl.classList.add('note-architect-field-config');
 		this.renderFormContents();
 	}
 
@@ -108,8 +108,8 @@ export class FieldConfigForm {
 		this.optionsEvents.dispose();
 		this.multiSelectDefaultEvents.dispose();
 		if (this.containerEl) {
-			this.containerEl.empty();
-			this.containerEl.removeClass('note-architect-field-config');
+			this.containerEl.innerHTML = '';
+			this.containerEl.classList.remove('note-architect-field-config');
 		}
 		this.resetElementRefs();
 		this.containerEl = undefined;
@@ -127,7 +127,7 @@ export class FieldConfigForm {
 		this.optionsEvents.dispose();
 		this.multiSelectDefaultEvents.dispose();
 		this.resetElementRefs();
-		this.containerEl.empty();
+		this.containerEl.innerHTML = '';
 		this.renderKeyInput(this.containerEl);
 		this.renderLabelInput(this.containerEl);
 		this.renderTypeSelect(this.containerEl);
@@ -243,7 +243,7 @@ export class FieldConfigForm {
 	 * 渲染默认值输入框
 	 */
 	private renderDefaultInput(container: HTMLElement): void {
-		const row = this.createFieldRow(container, { stacked: this.config.field.type === 'multi-select' });
+		const row = this.createFieldRow(container, { stacked: this.config.field.type === 'multi-select' || this.config.field.type === 'select' });
 		row.createEl('label', {
 			text: '默认值:',
 			cls: 'note-architect-field-label'
@@ -257,9 +257,9 @@ export class FieldConfigForm {
 
 		const contentContainer = row.createDiv('note-architect-field-default-content');
 
-		if (this.config.field.type === 'multi-select') {
+		if (this.config.field.type === 'multi-select' || this.config.field.type === 'select') {
 			this.multiSelectDefaultContainer = contentContainer;
-			this.renderMultiSelectDefaultControls(contentContainer);
+			this.renderSelectDefaultControls(contentContainer);
 			return;
 		}
 
@@ -381,9 +381,9 @@ export class FieldConfigForm {
 	}
 
 	private updateDefaultValueControls(): void {
-		if (this.config.field.type === 'multi-select') {
+		if (this.config.field.type === 'multi-select' || this.config.field.type === 'select') {
 			if (this.multiSelectDefaultContainer) {
-				this.renderMultiSelectDefaultControls(this.multiSelectDefaultContainer);
+				this.renderSelectDefaultControls(this.multiSelectDefaultContainer);
 			}
 			return;
 		}
@@ -403,8 +403,8 @@ export class FieldConfigForm {
 		if (this.config.field.type === 'date') {
 			this.updateDateAutofillPreview(normalizedDefault);
 		} else {
-			this.dateAutoFillPreviewEl?.empty();
-			this.dateAutoFillPreviewEl?.toggleClass('is-hidden', true);
+			this.dateAutoFillPreviewEl && (this.dateAutoFillPreviewEl.innerHTML = '');
+			this.dateAutoFillPreviewEl?.classList.toggle('is-hidden', true);
 			if (this.dateAutoFillCheckbox) {
 				this.dateAutoFillCheckbox.checked = false;
 			}
@@ -417,7 +417,7 @@ export class FieldConfigForm {
 		}
 
 		if (this.config.field.type !== 'select' && this.config.field.type !== 'multi-select') {
-			this.optionsListContainer.empty();
+			this.optionsListContainer.innerHTML = '';
 			return;
 		}
 
@@ -447,11 +447,11 @@ export class FieldConfigForm {
 			if (this.defaultInputEl.value !== displayValue) {
 				this.defaultInputEl.value = displayValue;
 			}
-			this.dateAutoFillPreviewEl.setText(`预览：${displayValue}`);
-			this.dateAutoFillPreviewEl.toggleClass('is-hidden', false);
+			this.dateAutoFillPreviewEl.textContent = `预览：${displayValue}`;
+			this.dateAutoFillPreviewEl.classList.toggle('is-hidden', false);
 		} else {
-			this.dateAutoFillPreviewEl.empty();
-			this.dateAutoFillPreviewEl.toggleClass('is-hidden', true);
+			this.dateAutoFillPreviewEl.innerHTML = '';
+			this.dateAutoFillPreviewEl.classList.toggle('is-hidden', true);
 		}
 	}
 
@@ -463,7 +463,7 @@ export class FieldConfigForm {
 		inputEl: HTMLInputElement
 	): void {
 		const row = this.createFieldRow(container, { stacked: true });
-		row.addClass('note-architect-date-autofill-row');
+		row.classList.add('note-architect-date-autofill-row');
 
 		const controls = row.createDiv('note-architect-date-autofill__controls');
 		const checkboxId = `note-architect-date-autofill-${Math.random().toString(36).slice(2)}`;
@@ -497,15 +497,15 @@ export class FieldConfigForm {
 				const templaterExpression = this.buildTemplaterDateExpression();
 				this.config.field.default = templaterExpression;
 				inputEl.value = templaterExpression;
-				previewEl.setText(`预览：${templaterExpression}`);
-				previewEl.toggleClass('is-hidden', false);
+				previewEl.textContent = `预览：${templaterExpression}`;
+				previewEl.classList.toggle('is-hidden', false);
 			} else {
 				const manualValue = this.manualDefaultCache.get(this.config.field) ?? '';
 				this.config.field.default = manualValue;
 				inputEl.value = manualValue;
 				this.manualDefaultCache.set(this.config.field, manualValue);
-				previewEl.empty();
-				previewEl.toggleClass('is-hidden', true);
+				previewEl.innerHTML = '';
+				previewEl.classList.toggle('is-hidden', true);
 			}
 
 			this.config.field.useTemplaterTimestamp = enabled;
@@ -526,7 +526,7 @@ export class FieldConfigForm {
 	 */
 	private renderOptionsList(containerEl: HTMLElement): void {
 		this.optionsEvents.dispose();
-		containerEl.empty();
+		containerEl.innerHTML = '';
 
 		if (!this.config.field.options || this.config.field.options.length === 0) {
 			containerEl.createEl('small', {
@@ -562,11 +562,11 @@ export class FieldConfigForm {
 	}
 
 	/**
-	 * 渲染多选默认值控件
+	 * 渲染选择类型默认值控件（支持单选和多选）
 	 */
-	private renderMultiSelectDefaultControls(container: HTMLElement): void {
+	private renderSelectDefaultControls(container: HTMLElement): void {
 		this.multiSelectDefaultEvents.dispose();
-		container.empty();
+		container.innerHTML = '';
 		this.multiSelectDefaultContainers.set(this.config.field, container);
 		this.multiSelectDefaultContainer = container;
 
@@ -574,11 +574,27 @@ export class FieldConfigForm {
 			? this.config.field.options.map(option => option.trim()).filter(Boolean)
 			: [];
 		const allowedOptions = options.length > 0 ? new Set(options) : undefined;
-		const normalizedDefault = normalizeStringArray(
-			this.config.field.default,
-			allowedOptions && allowedOptions.size > 0 ? allowedOptions : undefined,
-		);
-		this.config.field.default = normalizedDefault;
+
+		// 根据字段类型处理默认值
+		if (this.config.field.type === 'multi-select') {
+			const normalizedDefault = normalizeStringArray(
+				this.config.field.default,
+				allowedOptions && allowedOptions.size > 0 ? allowedOptions : undefined,
+			);
+			this.config.field.default = normalizedDefault;
+		} else {
+			// 单选字段：确保默认值是字符串或空字符串
+			const currentDefault = this.config.field.default;
+			const normalizedDefault = typeof currentDefault === 'string' ? currentDefault :
+				(Array.isArray(currentDefault) && currentDefault.length > 0 ? currentDefault[0] : '');
+
+			// 验证默认值是否在选项中
+			if (allowedOptions && allowedOptions.size > 0 && normalizedDefault && !allowedOptions.has(normalizedDefault)) {
+				this.config.field.default = '';
+			} else {
+				this.config.field.default = normalizedDefault;
+			}
+		}
 
 		if (options.length === 0) {
 			container.createEl('small', {
@@ -588,16 +604,32 @@ export class FieldConfigForm {
 			return;
 		}
 
+		// 根据类型显示不同的提示文本
+		const descriptionText = this.config.field.type === 'multi-select'
+			? '勾选需要自动填入的默认选项。'
+			: '选择一个默认选项（可选）。';
+
 		container.createEl('small', {
-			text: '勾选需要自动填入的默认选项。',
+			text: descriptionText,
 			cls: 'setting-item-description'
 		});
 
-		const checkboxContainer = container.createDiv('note-architect-multi-select-container');
+		const controlsContainer = container.createDiv('note-architect-multi-select-container');
 
+		if (this.config.field.type === 'multi-select') {
+			this.renderMultiSelectCheckboxes(controlsContainer, options);
+		} else {
+			this.renderSingleSelectRadios(controlsContainer, options);
+		}
+	}
+
+	/**
+	 * 渲染多选复选框
+	 */
+	private renderMultiSelectCheckboxes(container: HTMLElement, options: string[]): void {
 		const syncDefault = () => {
 			const selected: string[] = [];
-			checkboxContainer.querySelectorAll('input[type="checkbox"]').forEach((node) => {
+			container.querySelectorAll('input[type="checkbox"]').forEach((node) => {
 				const checkbox = node as HTMLInputElement;
 				if (checkbox.checked) {
 					const value = checkbox.value.trim();
@@ -616,7 +648,7 @@ export class FieldConfigForm {
 				return;
 			}
 
-			const optionRow = checkboxContainer.createDiv('note-architect-checkbox-container');
+			const optionRow = container.createDiv('note-architect-checkbox-container');
 			const checkbox = optionRow.createEl('input', {
 				type: 'checkbox',
 				value: normalizedOption,
@@ -633,6 +665,69 @@ export class FieldConfigForm {
 				cls: 'note-architect-form-label'
 			});
 			label.htmlFor = `${checkbox.id}-${normalizedOption}`;
+		});
+	}
+
+	/**
+	 * 渲染单选单选按钮（包含“无默认值”选项）
+	 */
+	private renderSingleSelectRadios(container: HTMLElement, options: string[]): void {
+		const radioGroupName = `select-default-${this.config.fieldIndex}-${Math.random().toString(36).slice(2)}`;
+
+		const syncDefault = () => {
+			const selectedRadio = container.querySelector('input[type="radio"]:checked') as HTMLInputElement;
+			if (selectedRadio) {
+				this.config.field.default = selectedRadio.value;
+			} else {
+				this.config.field.default = '';
+			}
+			this.notifyFieldChange();
+		};
+
+		// 添加"无默认值"选项
+		const noDefaultRow = container.createDiv('note-architect-checkbox-container');
+		const noDefaultRadio = noDefaultRow.createEl('input', {
+			type: 'radio',
+			value: '',
+			cls: 'note-architect-form-checkbox'
+		}) as HTMLInputElement;
+		noDefaultRadio.name = radioGroupName;
+
+		const currentDefault = this.config.field.default;
+		noDefaultRadio.checked = !currentDefault || currentDefault === '';
+
+		this.multiSelectDefaultEvents.add(noDefaultRadio, 'change', syncDefault);
+
+		const noDefaultLabel = noDefaultRow.createEl('label', {
+			text: '（无默认值）',
+			cls: 'note-architect-form-label'
+		});
+		noDefaultLabel.htmlFor = `${noDefaultRadio.id}-no-default`;
+
+		// 渲染选项单选按钮
+		options.forEach((option) => {
+			const normalizedOption = option.trim();
+			if (!normalizedOption) {
+				return;
+			}
+
+			const optionRow = container.createDiv('note-architect-checkbox-container');
+			const radio = optionRow.createEl('input', {
+				type: 'radio',
+				value: normalizedOption,
+				cls: 'note-architect-form-checkbox'
+			}) as HTMLInputElement;
+			radio.name = radioGroupName;
+
+			radio.checked = currentDefault === normalizedOption;
+
+			this.multiSelectDefaultEvents.add(radio, 'change', syncDefault);
+
+			const label = optionRow.createEl('label', {
+				text: normalizedOption,
+				cls: 'note-architect-form-label'
+			});
+			label.htmlFor = `${radio.id}-${normalizedOption}`;
 		});
 	}
 
@@ -654,38 +749,44 @@ export class FieldConfigForm {
 	 * 处理字段类型变更
 	 */
 	private handleTypeChange(newType: FrontmatterFieldType): void {
-		this.config.field.type = newType;
+		// 创建当前字段的一个深拷贝副本，而不是直接修改
+		const updatedField = { ...this.getField(), type: newType };
 
 		if (newType !== 'select' && newType !== 'multi-select') {
-			this.config.field.options = [];
+			updatedField.options = [];
 		}
 
 		if (newType !== 'date') {
-			this.config.field.useTemplaterTimestamp = false;
+			updatedField.useTemplaterTimestamp = false;
 			if (newType !== 'multi-select') {
 				const cachedDefault = this.manualDefaultCache.get(this.config.field);
 				if (typeof cachedDefault === 'string') {
-					this.config.field.default = cachedDefault;
-				} else if (Array.isArray(this.config.field.default)) {
-					this.config.field.default = this.config.field.default[0] ?? '';
+					updatedField.default = cachedDefault;
+				} else if (Array.isArray(updatedField.default)) {
+					updatedField.default = updatedField.default[0] ?? '';
 				}
 			}
 		}
 
 		if (newType === 'multi-select') {
-			const normalizedOptions = Array.isArray(this.config.field.options)
-				? new Set(this.config.field.options.map(option => option.trim()).filter(Boolean))
+			const normalizedOptions = Array.isArray(updatedField.options)
+				? new Set(updatedField.options.map(option => option.trim()).filter(Boolean))
 				: undefined;
-			this.config.field.default = normalizeStringArray(
-				this.config.field.default,
+			updatedField.default = normalizeStringArray(
+				updatedField.default,
 				normalizedOptions && normalizedOptions.size > 0 ? normalizedOptions : undefined,
 			);
-		} else if (Array.isArray(this.config.field.default)) {
-			this.config.field.default = this.config.field.default[0] ?? '';
+		} else if (Array.isArray(updatedField.default)) {
+			updatedField.default = updatedField.default[0] ?? '';
 		}
 
-		// 通知父组件重新渲染整个表单（结构性变更）
-		this.notifyStructuralChange();
+		// 使用修改后的副本通知父组件，避免直接修改内部状态
+		if (this.config.onStructuralChange) {
+			this.config.onStructuralChange(updatedField, this.config.fieldIndex);
+		} else {
+			// 如果没有提供结构性变更回调，则使用普通变更回调
+			this.config.onFieldChange(updatedField, this.config.fieldIndex);
+		}
 	}
 
 	/**
@@ -722,7 +823,7 @@ export class FieldConfigForm {
 		if (!container) {
 			return;
 		}
-		this.renderMultiSelectDefaultControls(container);
+		this.renderSelectDefaultControls(container);
 	}
 
 	/**
@@ -828,24 +929,24 @@ export class FieldConfigForm {
 		const hasErrors = messages.length > 0;
 
 		if (errorEl) {
-			errorEl.setText(hasErrors ? messages.join(' ') : '');
-			errorEl.toggleClass('is-hidden', !hasErrors);
+			errorEl.textContent = hasErrors ? messages.join(' ') : '';
+			errorEl.classList.toggle('is-hidden', !hasErrors);
 		}
 
-		row?.toggleClass('note-architect-field-row--error', hasErrors);
+		row?.classList.toggle('note-architect-field-row--error', hasErrors);
 		this.toggleInputErrorClass(kind, hasErrors);
 	}
 
 	private toggleInputErrorClass(kind: FieldValidationErrorKey, hasErrors: boolean): void {
 		switch (kind) {
 			case 'key':
-				this.keyInputEl?.toggleClass('note-architect-field-input--error', hasErrors);
+				this.keyInputEl?.classList.toggle('note-architect-field-input--error', hasErrors);
 				break;
 			case 'label':
-				this.labelInputEl?.toggleClass('note-architect-field-input--error', hasErrors);
+				this.labelInputEl?.classList.toggle('note-architect-field-input--error', hasErrors);
 				break;
 			case 'options':
-				this.optionsListContainer?.toggleClass('note-architect-options-list--error', hasErrors);
+				this.optionsListContainer?.classList.toggle('note-architect-options-list--error', hasErrors);
 				break;
 		}
 	}
@@ -858,7 +959,7 @@ export class FieldConfigForm {
 
 	private createErrorMessage(row: HTMLDivElement): HTMLDivElement {
 		const errorEl = row.createDiv('note-architect-field-error is-hidden');
-		errorEl.setAttr('role', 'alert');
+		errorEl.setAttribute('role', 'alert');
 		return errorEl;
 	}
 }

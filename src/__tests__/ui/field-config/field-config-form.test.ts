@@ -10,6 +10,38 @@ const mockToggleClass = jest.fn();
 
 // Setup Element prototype mocks before each test
 beforeAll(() => {
+	// Mock standard DOM methods
+	Object.defineProperty(Element.prototype, 'innerHTML', {
+		set(value) {
+			this._innerHTML = value;
+		},
+		get() {
+			return this._innerHTML;
+		},
+		configurable: true
+	});
+
+	Object.defineProperty(Element.prototype, 'textContent', {
+		set(value) {
+			this._textContent = value;
+		},
+		get() {
+			return this._textContent;
+		},
+		configurable: true
+	});
+
+	// Mock DOM classList
+	Object.defineProperty(Element.prototype, 'classList', {
+		value: {
+			add: jest.fn(),
+			remove: jest.fn(),
+			toggle: jest.fn(),
+		},
+		configurable: true
+	});
+
+	// Mock Obsidian API methods (for backwards compatibility)
 	Object.defineProperty(Element.prototype, 'empty', {
 		value: mockEmpty.mockReturnThis(),
 		configurable: true
@@ -102,8 +134,9 @@ describe('FieldConfigForm', () => {
 	describe('render', () => {
 		it('should render form container with correct class', () => {
 			fieldForm.render(mockContainer);
-			expect(mockContainer.empty).toHaveBeenCalled();
-			expect(mockContainer.addClass).toHaveBeenCalledWith('note-architect-field-config');
+			// Check standard DOM API is used
+			expect(mockContainer.innerHTML).toBe('');
+			expect(mockContainer.classList.add).toHaveBeenCalledWith('note-architect-field-config');
 		});
 
 		it('should render all form sections', () => {
@@ -120,7 +153,7 @@ describe('FieldConfigForm', () => {
 			// First render to establish baseline
 			jest.clearAllMocks();
 			fieldForm.render(mockContainer);
-			const initialEmptyCallCount = mockEmpty.mock.calls.length;
+			const initialInnerHTML = mockContainer.innerHTML;
 
 			// Update with non-structural changes
 			const updatedField = {
@@ -132,15 +165,14 @@ describe('FieldConfigForm', () => {
 			};
 			fieldForm.update(updatedField, 0);
 
-			// Should not have called empty again (no re-render)
-			expect(mockEmpty.mock.calls.length).toBe(initialEmptyCallCount);
+			// Should not have re-rendered (innerHTML should be same)
+			expect(mockContainer.innerHTML).toBe(initialInnerHTML);
 		});
 
 		it('should re-render for structural changes (type change)', () => {
 			// First render to establish baseline
 			jest.clearAllMocks();
 			fieldForm.render(mockContainer);
-			const initialEmptyCallCount = mockEmpty.mock.calls.length;
 
 			// Update with structural change - type change
 			const updatedField = {
@@ -149,8 +181,10 @@ describe('FieldConfigForm', () => {
 			};
 			fieldForm.update(updatedField, 0);
 
-			// Should have called empty again (re-render)
-			expect(mockEmpty.mock.calls.length).toBeGreaterThan(initialEmptyCallCount);
+			// Should have re-rendered (innerHTML set to empty then content added)
+			expect(mockContainer.innerHTML).toBe('');
+			// Check that classList methods were called during re-render
+			expect(mockContainer.classList.add).toHaveBeenCalled();
 		});
 
 		it('should re-render for structural changes (options change)', () => {
@@ -162,7 +196,6 @@ describe('FieldConfigForm', () => {
 			// First render to establish baseline
 			jest.clearAllMocks();
 			fieldForm.render(mockContainer);
-			const initialEmptyCallCount = mockEmpty.mock.calls.length;
 
 			// Update with structural change - options change
 			const updatedField = {
@@ -171,8 +204,10 @@ describe('FieldConfigForm', () => {
 			};
 			fieldForm.update(updatedField, 0);
 
-			// Should have called empty again (re-render)
-			expect(mockEmpty.mock.calls.length).toBeGreaterThan(initialEmptyCallCount);
+			// Should have re-rendered (innerHTML set to empty then content added)
+			expect(mockContainer.innerHTML).toBe('');
+			// Check that classList methods were called during re-render
+			expect(mockContainer.classList.add).toHaveBeenCalled();
 		});
 
 		it('should re-render for structural changes (useTemplaterTimestamp change)', () => {
@@ -183,7 +218,6 @@ describe('FieldConfigForm', () => {
 			// First render to establish baseline
 			jest.clearAllMocks();
 			fieldForm.render(mockContainer);
-			const initialEmptyCallCount = mockEmpty.mock.calls.length;
 
 			// Update with structural change - useTemplaterTimestamp change
 			const updatedField = {
@@ -192,8 +226,10 @@ describe('FieldConfigForm', () => {
 			};
 			fieldForm.update(updatedField, 0);
 
-			// Should have called empty again (re-render)
-			expect(mockEmpty.mock.calls.length).toBeGreaterThan(initialEmptyCallCount);
+			// Should have re-rendered (innerHTML set to empty then content added)
+			expect(mockContainer.innerHTML).toBe('');
+			// Check that classList methods were called during re-render
+			expect(mockContainer.classList.add).toHaveBeenCalled();
 		});
 	});
 

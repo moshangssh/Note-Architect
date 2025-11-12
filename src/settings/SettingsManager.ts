@@ -7,7 +7,7 @@ import type {
 	FrontmatterFieldDefault,
 	FrontmatterPreset,
 } from "@types";
-import { normalizeStringArray } from "@utils/data-transformer";
+import { sanitizeFrontmatterFields } from "@utils/frontmatter/field";
 
 export interface SaveSettingsOptions {
 	onAfterSave?: () => void;
@@ -16,7 +16,6 @@ export interface SaveSettingsOptions {
 
 type PartialSettings = Partial<NoteArchitectSettings>;
 
-const VALID_FIELD_TYPES: FrontmatterField["type"][] = ["text", "select", "date", "multi-select"];
 const MAX_RECENT_TEMPLATES = 5;
 
 export class SettingsManager {
@@ -70,9 +69,32 @@ export class SettingsManager {
 	async addPreset(preset: FrontmatterPreset, options?: SaveSettingsOptions): Promise<void> {
 		const sanitizedPreset: FrontmatterPreset = {
 			...preset,
-			fields: this.sanitizeFrontmatterFields(preset.fields ?? []),
+			fields: sanitizeFrontmatterFields(preset.fields ?? []),
 		};
 		this.settings.frontmatterPresets.push(structuredClone(sanitizedPreset));
+		await this.save(this.settings, options);
+	}
+
+	async replacePresets(presets: FrontmatterPreset[], options?: SaveSettingsOptions): Promise<void> {
+		const sanitizedPresets = presets.map((preset) => ({
+			...preset,
+			fields: sanitizeFrontmatterFields(preset.fields ?? []),
+		}));
+		this.settings.frontmatterPresets = sanitizedPresets.map((preset) => structuredClone(preset));
+		await this.save(this.settings, options);
+	}
+
+	async appendPresets(presets: FrontmatterPreset[], options?: SaveSettingsOptions): Promise<void> {
+		if (presets.length === 0) {
+			return;
+		}
+		const sanitizedPresets = presets.map((preset) => ({
+			...preset,
+			fields: sanitizeFrontmatterFields(preset.fields ?? []),
+		}));
+		this.settings.frontmatterPresets.push(
+			...sanitizedPresets.map((preset) => structuredClone(preset)),
+		);
 		await this.save(this.settings, options);
 	}
 
@@ -94,7 +116,7 @@ export class SettingsManager {
 		if (!preset) {
 			throw new Error(`未找到 ID 为 "${presetId}" 的预设`);
 		}
-		preset.fields = this.sanitizeFrontmatterFields(fields);
+		preset.fields = sanitizeFrontmatterFields(fields);
 		await this.save(this.settings, options);
 	}
 
@@ -108,6 +130,14 @@ export class SettingsManager {
 	async updateTemplateFolderPath(path: string, options?: SaveSettingsOptions): Promise<void> {
 		const normalizedPath = path.trim().replace(/^\/+|\/+$/g, "");
 		this.settings.templateFolderPath = normalizedPath;
+		await this.save(this.settings, options);
+	}
+
+	async setLastUsedPresetForUpdate(presetId: string, options?: SaveSettingsOptions): Promise<void> {
+		if (this.settings.lastUsedPresetForUpdate === presetId) {
+			return;
+		}
+		this.settings.lastUsedPresetForUpdate = presetId;
 		await this.save(this.settings, options);
 	}
 
@@ -161,62 +191,10 @@ export class SettingsManager {
 			})
 			.map((preset) => ({
 				...preset,
-				fields: this.sanitizeFrontmatterFields(preset.fields),
+				fields: sanitizeFrontmatterFields(preset.fields),
 			}));
 		// 允许创建后再配置字段，因此不再过滤空字段预设
 		return normalizedPresets;
-	}
-
-	private sanitizeFrontmatterFields(fields: FrontmatterField[]): FrontmatterField[] {
-		return fields
-			.filter((field) => {
-				return Boolean(
-					field &&
-					typeof field === "object" &&
-					field.key &&
-					field.type &&
-					field.label
-				);
-			})
-			.map((field) => {
-				const type = VALID_FIELD_TYPES.includes(field.type) ? field.type : "text";
-				const sanitizedDefault = this.normalizeFieldDefault(type, field.default);
-				const sanitized: FrontmatterField = {
-					key: field.key,
-					type,
-					label: field.label,
-					default: sanitizedDefault,
-				};
-
-				if (Array.isArray(field.options) && field.options.length > 0) {
-					sanitized.options = field.options.map((option) => String(option).trim()).filter(Boolean);
-				}
-
-				if (field.useTemplaterTimestamp === true) {
-					sanitized.useTemplaterTimestamp = true;
-				}
-
-				return sanitized;
-			});
-	}
-
-	private normalizeFieldDefault(
-		type: FrontmatterField["type"],
-		rawDefault: unknown,
-	): FrontmatterFieldDefault {
-		if (type === "multi-select") {
-			return normalizeStringArray(rawDefault);
-		}
-
-		if (typeof rawDefault === "string") {
-			return rawDefault;
-		}
-
-		if (rawDefault === undefined || rawDefault === null) {
-			return "";
-		}
-
-		return String(rawDefault);
 	}
 
 	private normalizeDefaultDateFormat(value: PartialSettings["defaultDateFormat"]): string {

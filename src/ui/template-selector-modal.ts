@@ -28,8 +28,6 @@ export class TemplateSelectorModal extends Modal {
 	private readonly schedulePreviewUpdate = debounce((template: Template | null) => this.renderPreview(template), 200);
 	private templateLoadStatus: TemplateLoadResult;
 	private readonly collator = new Intl.Collator('zh-CN', { sensitivity: 'base' });
-	private templateNameCache: Map<string, string> = new Map();
-	private templateContentCache: Map<string, string> = new Map();
 	private searchContentEnabled = false;
 	private activeIndex = -1;
 	private highlightActive = false;
@@ -50,13 +48,7 @@ export class TemplateSelectorModal extends Modal {
 	}
 
 	private setTemplates(templates: Template[]) {
-		// 统一重建缓存，避免重复计算小写字符串
 		this.templates = templates;
-		this.templateNameCache.clear();
-		this.templateContentCache.clear();
-		for (const template of templates) {
-			this.templateNameCache.set(template.id, template.name.toLowerCase());
-		}
 	}
 
 	private clearActiveHighlight() {
@@ -72,28 +64,6 @@ export class TemplateSelectorModal extends Modal {
 		this.activeIndex = this.highlightActive ? 0 : -1;
 	}
 
-	private getNormalizedName(template: Template): string {
-		const cached = this.templateNameCache.get(template.id);
-		if (cached) {
-			return cached;
-		}
-
-		const normalized = template.name.toLowerCase();
-		this.templateNameCache.set(template.id, normalized);
-		return normalized;
-	}
-
-	private getNormalizedContent(template: Template): string {
-		const cached = this.templateContentCache.get(template.id);
-		if (cached) {
-			return cached;
-		}
-
-		const normalized = template.content.toLowerCase();
-		this.templateContentCache.set(template.id, normalized);
-		return normalized;
-	}
-
 	private searchTemplates(query: string): Template[] {
 		if (!query || query.trim() === '') {
 			return [...this.templates];
@@ -102,13 +72,14 @@ export class TemplateSelectorModal extends Modal {
 		const normalizedQuery = query.toLowerCase().trim();
 		return this.templates
 			.filter(template => {
-				if (this.getNormalizedName(template).includes(normalizedQuery)) {
+				const normalizedName = template.name.toLowerCase();
+				if (normalizedName.includes(normalizedQuery)) {
 					return true;
 				}
 				if (!this.searchContentEnabled) {
 					return false;
 				}
-				return this.getNormalizedContent(template).includes(normalizedQuery);
+				return template.content.toLowerCase().includes(normalizedQuery);
 			})
 			.sort((a, b) => this.collator.compare(a.name, b.name));
 	}
@@ -417,7 +388,7 @@ export class TemplateSelectorModal extends Modal {
 			}
 
 			if (matched.length > 0) {
-				new FrontmatterManagerModal(this.app, this.plugin, template, matched).open();
+				FrontmatterManagerModal.forTemplateInsertion(this.app, this.plugin, template, matched).open();
 				this.close();
 				return;
 			}
@@ -448,7 +419,7 @@ export class TemplateSelectorModal extends Modal {
 			(selectedPreset) => {
 				if (selectedPreset) {
 					// 用户选择了预设，打开 FrontmatterManagerModal
-					new FrontmatterManagerModal(this.app, this.plugin, template, [selectedPreset]).open();
+					FrontmatterManagerModal.forTemplateInsertion(this.app, this.plugin, template, [selectedPreset]).open();
 				} else {
 					// 用户选择直接插入，不使用预设
 					this.insertTemplate(template);

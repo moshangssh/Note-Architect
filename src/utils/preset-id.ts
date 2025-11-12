@@ -91,3 +91,42 @@ export function generateUniquePresetId(name: string, options: GeneratePresetIdOp
 
 	return `preset-${Date.now().toString(36)}`.slice(0, MAX_ID_LENGTH);
 }
+
+export function generateUniquePresetIdFromOriginalId(
+	originalId: string,
+	options: GeneratePresetIdOptions = {},
+): string {
+	const existingIds = options.existingIds ? new Set(options.existingIds) : new Set<string>();
+	const isValidId = options.isValidId ?? (() => true);
+	const isIdAvailable = options.isIdAvailable ?? ((candidate: string) => !existingIds.has(candidate));
+	const maxSuffix = options.maxSuffix ?? DEFAULT_MAX_SUFFIX;
+
+	const normalizedOriginalId = originalId.trim();
+	if (isValidId(normalizedOriginalId) && isIdAvailable(normalizedOriginalId)) {
+		return normalizedOriginalId;
+	}
+
+	let suffix = 2;
+	const baseId = normalizedOriginalId;
+
+	while (suffix <= maxSuffix) {
+		const suffixText = `-${suffix}`;
+		const availableLength = MAX_ID_LENGTH - suffixText.length;
+		let truncatedBase = baseId.slice(0, availableLength).replace(/-+$/g, '');
+
+		const candidate = `${truncatedBase}${suffixText}`;
+
+		if (isValidId(candidate) && isIdAvailable(candidate)) {
+			return candidate;
+		}
+
+		suffix += 1;
+	}
+
+	const timestampId = `${baseId}-${Date.now()}`;
+	if (isValidId(timestampId) && isIdAvailable(timestampId)) {
+		return timestampId.slice(0, MAX_ID_LENGTH);
+	}
+
+	return `${baseId}-${Date.now().toString(36)}`.slice(0, MAX_ID_LENGTH);
+}

@@ -1,0 +1,1 @@
+2025-02-14: FrontmatterManagerModal 现已接收 options（含 template、presets、isUpdateMode），并新增静态工厂 forTemplateInsertion/forFrontmatterUpdate。UI 支持更新模式：可切换预设、选择合并/覆盖，并将表单结果直接调用 getNoteMetadata + mergeFrontmatters/updateNoteFrontmatter。UiRegistrar 注册了 id 为 update-note-frontmatter 的命令并复用新的 forFrontmatterUpdate 工厂。TemplateSelector 通过 forTemplateInsertion 打开表单。

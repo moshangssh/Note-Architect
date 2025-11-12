@@ -37,6 +37,22 @@ const createManager = (presets: FrontmatterPreset[] = []) => {
 			});
 			await save(settings);
 		}),
+		replacePresets: jest.fn(async (presets: FrontmatterPreset[]) => {
+			settings.frontmatterPresets = presets.map((preset) => ({
+				...preset,
+				fields: preset.fields.map((field) => ({ ...field })),
+			}));
+			await save(settings);
+		}),
+		appendPresets: jest.fn(async (presets: FrontmatterPreset[]) => {
+			settings.frontmatterPresets.push(
+				...presets.map((preset) => ({
+					...preset,
+					fields: preset.fields.map((field) => ({ ...field })),
+				})),
+			);
+			await save(settings);
+		}),
 		deletePreset: jest.fn(async (presetId: string) => {
 			const index = settings.frontmatterPresets.findIndex((preset) => preset.id === presetId);
 			if (index === -1) {

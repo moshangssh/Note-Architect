@@ -4,11 +4,11 @@ import type NoteArchitect from '@core/plugin';
 import type { PresetManager } from '@presets';
 import type { SettingsManager } from '@settings';
 import type { FrontmatterPreset, Template } from '@types';
-import { NoteArchitectSettingTab, TemplatePresetBindingModal, TemplateSelectorModal } from '@ui';
+import { FrontmatterManagerModal, NoteArchitectSettingTab, TemplatePresetBindingModal, TemplateSelectorModal } from '@ui';
 import { handleError } from '@core/error';
 import { parseFrontmatter, updateFrontmatter } from '@utils/frontmatter-editor';
 import { notifyInfo, notifySuccess, notifyWarning } from '@utils/notify';
-import { normalizePath } from '@utils/path';
+import { isInsideTemplateFolder } from '@utils/path';
 import { PRESET_CONFIG_KEY } from '@core/constants';
 import { resolvePresetConfigIds, stripPresetConfigKeys } from '@utils/note-architect-config';
 
@@ -78,6 +78,13 @@ export class UiRegistrar {
       icon: 'link',
       checkCallback: (checking) => this.handleBindCommand(checking),
     });
+
+    this.plugin.addCommand({
+      id: 'update-note-frontmatter',
+      name: '更新当前笔记的 Frontmatter',
+      icon: 'file-edit',
+      checkCallback: (checking) => this.handleUpdateFrontmatterCommand(checking),
+    });
   }
 
   private registerSettingTab(): void {
@@ -101,7 +108,7 @@ export class UiRegistrar {
       return false;
     }
 
-    if (!this.isInsideTemplateFolder(file, folderPath)) {
+    if (!isInsideTemplateFolder(file.path, folderPath)) {
       if (!checking) {
         notifyWarning('当前文件不在模板文件夹内，请先将模板移动到指定目录。');
       }
@@ -113,6 +120,28 @@ export class UiRegistrar {
     }
 
     void this.openTemplatePresetBindingModal(file);
+    return true;
+  }
+
+  private handleUpdateFrontmatterCommand(checking: boolean): boolean {
+    const markdownView = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!markdownView) {
+      return false;
+    }
+
+    const presets = this.presetManager.getPresets();
+    if (!presets || presets.length === 0) {
+      if (!checking) {
+        notifyWarning('请先创建至少一个 frontmatter 预设。');
+      }
+      return false;
+    }
+
+    if (checking) {
+      return true;
+    }
+
+    FrontmatterManagerModal.forFrontmatterUpdate(this.plugin.app, this.noteArchitect, { presets }).open();
     return true;
   }
 
@@ -222,13 +251,5 @@ export class UiRegistrar {
     }
   }
 
-  private isInsideTemplateFolder(file: TFile, folderPath: string): boolean {
-    const normalizedFolder = normalizePath(folderPath);
-    if (!normalizedFolder) {
-      return false;
-    }
-
-    const normalizedFilePath = normalizePath(file.path);
-    return normalizedFilePath.startsWith(`${normalizedFolder}/`);
-  }
 }
+
