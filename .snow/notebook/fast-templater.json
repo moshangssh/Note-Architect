@@ -1,0 +1,57 @@
+{
+  "styles.css": [
+    {
+      "id": "notebook-1764087187299_w28aq1ovd",
+      "filePath": "styles.css",
+      "note": "⚠️ Flexbox 文本截断：.note-architect-template-path-inline（第1881-1891行）必须包含 min-width: 0，这是 Flexbox 子元素正确应用 text-overflow: ellipsis 的关键。不可删除此属性，否则在嵌套 Flexbox 中长文本会导致布局溢出。",
+      "createdAt": "2025-11-26T00:13:07.299",
+      "updatedAt": "2025-11-26T00:13:07.299"
+    },
+    {
+      "id": "notebook-1764086955428_ohgpu58aw",
+      "filePath": "styles.css",
+      "note": "✅ 错误状态样式已优化（第79-86行）：移除了 !important，改用增加选择器权重的方式（input.class.class--modifier）。保留的 4 处 !important 均位于 prefers-reduced-motion 媒体查询中（1204-1215行），用于无障碍访问，应保持不变。",
+      "createdAt": "2025-11-26T00:09:15.428",
+      "updatedAt": "2025-11-26T00:09:15.428"
+    },
+    {
+      "id": "notebook-1764086636729_xnc6rsp5w",
+      "filePath": "styles.css",
+      "note": "⚠️ Focus 样式已统一优化：第63-77行的 :is() 选择器统一管理所有输入控件的 focus 状态（包括 input-base, search-input, field-input, form-input, preset-name-input, field-select, form-select）。已删除所有重复的 focus 定义。唯一保留的特殊 focus 样式：.note-architect-form-checkbox:focus（第1719行，使用 outline）。如需修改输入控件的 focus 样式，只需修改统一的 :is() 块或调整 CSS 变量 --interactive-accent 和 --note-architect-input-focus-width。",
+      "createdAt": "2025-11-26T00:03:56.729",
+      "updatedAt": "2025-11-26T00:03:56.729"
+    },
+    {
+      "id": "notebook-1764086063487_q33qvujz5",
+      "filePath": "styles.css",
+      "note": "✅ CSS选择器已优化：第24-77行的输入控件基础样式、Hover状态、Focus状态均已使用:is()简化。从21个重复选择器减少到3个:is()块，提升了可维护性。如需降低特异性便于覆盖，可将:is()替换为:where()。",
+      "createdAt": "2025-11-25T23:54:23.487",
+      "updatedAt": "2025-11-25T23:54:23.487"
+    },
+    {
+      "id": "notebook-1764083486680_23vh48j0q",
+      "filePath": "styles.css",
+      "note": "⚠️ 媒体查询已优化合并：相同断点的媒体查询已统一放置在文件末尾（1933-2204行），按断点大小排序（768px→700px→640px→480px）。修改时注意保持这个结构，避免重新分散。特别保留的规则：640px断点的field-config-layout移动端布局（1131行）和prefers-reduced-motion动画优化（1209行）。",
+      "createdAt": "2025-11-25T23:11:26.680",
+      "updatedAt": "2025-11-25T23:11:26.680"
+    }
+  ],
+  "src/utils/preset-id.ts": [
+    {
+      "id": "notebook-1764088763469_8fmpgqhgr",
+      "filePath": "src/utils/preset-id.ts",
+      "note": "⚠️ 重构完成：已提取 resolveIdConflict 函数来消除重复代码。generateUniquePresetId 和 generateUniquePresetIdFromOriginalId 现在都使用统一的冲突解决算法。注意：resolveIdConflict 是内部函数（未导出），用于封装 ID 冲突解决的核心逻辑（后缀递增 + 时间戳降级）。",
+      "createdAt": "2025-11-26T00:39:23.469",
+      "updatedAt": "2025-11-26T00:39:23.469"
+    }
+  ],
+  "src/ui/template-preset-binding-modal.ts": [
+    {
+      "id": "notebook-1764178078651_4dzi48h9e",
+      "filePath": "src/ui/template-preset-binding-modal.ts",
+      "note": "⚠️ 已移除智能匹配功能 - 此模态窗口现在使用简单的名称/ID/描述过滤，不再依赖 PresetMatcher 进行智能推荐。filteredResults 类型为 FrontmatterPreset[]（原 PresetMatchResult[]）",
+      "createdAt": "2025-11-27T01:27:58.651",
+      "updatedAt": "2025-11-27T01:27:58.651"
+    }
+  ]
+}

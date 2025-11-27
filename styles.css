@@ -3,1415 +3,1555 @@ Note Architect - Obsidian Native Style
 使用 Obsidian 原生 CSS 变量以增强主题兼容性
 */
 
+:root {
+  --note-architect-input-border: var(--background-modifier-border);
+  --note-architect-input-border-hover: var(--interactive-accent);
+  --note-architect-input-focus-width: 2px;
+  --note-architect-input-bg: var(--background-primary);
+  --note-architect-input-bg-hover: var(--background-primary-alt);
+  --note-architect-input-bg-focus: var(--background-primary);
+  --note-architect-input-font-size: 14px;
+  --note-architect-input-radius: var(--radius-s);
+  --note-architect-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  --note-architect-gap-sm: 8px;
+  --note-architect-gap-md: 12px;
+}
+
+/* ========================================
+   核心控件样式 (统一所有 Input/Select)
+   ======================================== */
+
+/* 定义通用选择器列表，一次性应用基础样式 */
+/* 使用 :is() 简化选择器（保持特异性），如需降低特异性便于覆盖可使用 :where() */
+:is(
+    .note-architect-input-base,
+    .note-architect-search-input,
+    .note-architect-field-input,
+    .note-architect-form-input,
+    .note-architect-preset-name-input,
+    .note-architect-field-select,
+    .note-architect-form-select
+  ) {
+  width: 100%;
+  border: 1px solid var(--note-architect-input-border);
+  border-radius: var(--note-architect-input-radius);
+  background-color: var(--note-architect-input-bg);
+  color: var(--text-normal);
+  font-size: var(--note-architect-input-font-size);
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease,
+    box-shadow 0.2s ease;
+  padding: 8px 12px;
+  line-height: 1.5;
+}
+
+/* 统一 Hover 状态 */
+:is(
+    .note-architect-input-base,
+    .note-architect-search-input,
+    .note-architect-field-input,
+    .note-architect-form-input,
+    .note-architect-preset-name-input,
+    .note-architect-field-select,
+    .note-architect-form-select
+  ):hover {
+  border-color: var(--note-architect-input-border-hover);
+  background-color: var(--note-architect-input-bg-hover);
+}
+
+/* 统一 Focus 状态 */
+:is(
+    .note-architect-input-base,
+    .note-architect-search-input,
+    .note-architect-field-input,
+    .note-architect-form-input,
+    .note-architect-preset-name-input,
+    .note-architect-field-select,
+    .note-architect-form-select
+  ):focus {
+  border-color: var(--interactive-accent);
+  border-width: var(--note-architect-input-focus-width);
+  background-color: var(--note-architect-input-bg-focus);
+  box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+/* 统一错误状态 - 通过增加选择器权重避免使用 !important */
+input.note-architect-field-input.note-architect-field-input--error,
+input.note-architect-form-input.note-architect-form-input--error,
+.note-architect-multi-select-container.note-architect-multi-select-container--error {
+  border-color: var(--text-error);
+  box-shadow: 0 0 0 1px var(--text-error);
+  opacity: 0.8;
+}
+
+/* Select 特有样式 (箭头处理) */
+.note-architect-field-select,
+.note-architect-form-select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 32px;
+}
+
 /* ========================================
    模板选择模态窗口样式
    ======================================== */
 
+/* 头部与说明 */
+.note-architect-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.note-architect-modal-header .modal-title {
+  margin: 0;
+  color: var(--text-normal);
+}
+
+.note-architect-modal-subtitle,
+.modal-content-description {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-architect-modal-meta {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 /* 搜索框样式 - Obsidian 原生风格 */
+.search-input-container {
+  width: 100%;
+}
+
+.note-architect-search-wrapper,
 .note-architect-search-container {
-	margin: 0 0 16px 0;
-	padding: 12px;
-	position: relative;
-	flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px 0;
+  padding: 4px 0;
+  background-color: transparent;
+  border: none;
+  flex-shrink: 0;
 }
 
 .note-architect-search-input {
-	width: 100%;
-	padding: 14px 40px 14px 16px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-xl);
-	background-color: var(--background-secondary);
-	color: var(--text-normal);
-	font-size: var(--font-ui-medium);
-	outline: none;
-	box-sizing: border-box;
-	box-shadow: none;
+  --note-architect-input-bg: var(--background-modifier-form-field);
+  --note-architect-input-bg-hover: var(--background-modifier-form-field);
+  --note-architect-input-bg-focus: var(--background-modifier-form-field);
+  --note-architect-input-radius: var(--radius-s);
+  --note-architect-input-font-size: var(--font-ui-small);
+  padding: 8px 12px 8px 36px;
+  box-shadow: none;
+  background-color: var(--background-modifier-form-field);
+  background-repeat: no-repeat;
+  background-position-x: 12px;
+  background-position-y: center;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  flex: 1;
 }
 
-.note-architect-search-input:hover {
-	border-color: var(--interactive-accent);
-	background-color: var(--background-modifier-hover);
+.note-architect-search-wrapper.search-input-container::before,
+.note-architect-search-container.search-input-container::before {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.note-architect-search-wrapper .note-architect-search-icon,
+.note-architect-search-container .note-architect-search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  pointer-events: none;
 }
 
 /* 清空搜索按钮 - Obsidian 原生风格 */
 .note-architect-search-clear {
-	position: absolute;
-	top: 50%;
-	right: 28px;
-	transform: translateY(-50%);
-	width: 24px;
-	height: 24px;
-	background: transparent;
-	border: none;
-	border-radius: var(--radius-xl);
-	padding: 0;
-	margin: 0;
-	font-size: 18px;
-	line-height: 24px;
-	color: var(--icon-color-muted);
-	cursor: pointer;
-	display: none;
-	-webkit-tap-highlight-color: transparent;
-	text-align: center;
-	font-weight: 400;
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-xl);
+  padding: 0;
+  margin: 0;
+  font-size: 18px;
+  line-height: 24px;
+  color: var(--icon-color-muted);
+  cursor: pointer;
+  display: none;
+  -webkit-tap-highlight-color: transparent;
+  text-align: center;
+  font-weight: 400;
 }
 
 .note-architect-search-clear:hover {
-	color: var(--icon-color-hover);
-	background-color: var(--background-modifier-hover);
+  color: var(--icon-color-hover);
+  background-color: var(--background-modifier-hover);
 }
 
 .note-architect-search-clear:active {
-	color: var(--interactive-accent);
-	background-color: var(--interactive-accent-hover);
+  color: var(--interactive-accent);
+  background-color: var(--interactive-accent-hover);
 }
 
 .note-architect-search-options {
-	margin: -8px 0 8px 0;
-	padding: 0 12px 0 12px;
-	display: flex;
-	align-items: center;
-	color: var(--text-muted);
-	font-size: var(--font-ui-small);
-	gap: 8px;
+  margin: 0 0 8px 0;
+  padding: 0 2px;
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  gap: var(--note-architect-gap-sm);
 }
 
 .note-architect-search-option {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
 }
 
 .note-architect-search-option-input {
-	width: 16px;
-	height: 16px;
-	margin: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
 }
 
 .note-architect-search-option-label {
-	user-select: none;
-}
-
-.note-architect-search-input:focus {
-	border-color: var(--interactive-accent);
-	border-width: 2px;
-	padding: 13px 39px 13px 15px;
-	background-color: var(--background-primary);
+  user-select: none;
 }
 
 .note-architect-search-input::placeholder {
-	color: var(--text-muted);
-	opacity: 0.7;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* 列表描述降噪与 ID 样式 */
+.note-architect-id-code {
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+  color: var(--text-muted);
+  background-color: var(--background-primary-alt);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.note-architect-desc-separator {
+  color: var(--text-faint);
+  margin: 0 6px;
+}
+
+.note-architect-desc-text {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
 }
 
 /* 主容器 - 双列布局 */
 .note-architect-main-container {
-	display: flex;
-	gap: 24px;
-	margin: 12px 0;
-	height: 480px;
-	max-height: 480px;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin: 12px 0;
+  height: 480px;
+  max-height: 480px;
 }
 
-/* 左侧区域容器（搜索框 + 模板列表） */
+/* 左侧区域容器（搜索框 + 模板列表） - 使用次级背景色创建侧边栏感 */
 .note-architect-left-container {
-	flex: 0 0 40%;
-	min-width: 250px;
-	max-width: 350px;
-	display: flex;
-	flex-direction: column;
-	height: 100%;
-	overflow: hidden;
-	border-right: 1px solid var(--background-modifier-border);
-	padding-right: 16px;
+  flex: 0 0 30%;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  padding: 16px;
+  background-color: var(--background-secondary);
+  border-right: 1px solid var(--background-modifier-border);
 }
 
-/* 右侧预览容器 */
+.note-architect-divider {
+  width: 1px;
+  align-self: stretch;
+  background-color: var(--background-modifier-border);
+}
+
+/* 右侧预览容器 - 充足留白 */
 .note-architect-preview-container {
-	flex: 1;
-	min-width: 0;
-	padding-left: 16px;
-	display: flex;
-	flex-direction: column;
-	height: 100%;
-	overflow: hidden;
+  flex: 1 1 70%;
+  min-width: 0;
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--background-primary);
 }
 
 .note-architect-preview-title {
-	margin: 0 0 12px 0;
-	font-size: var(--font-ui-large);
-	font-weight: var(--font-semibold);
-	color: var(--text-normal);
-	flex-shrink: 0;
+  margin: 0 0 12px 0;
+  font-size: var(--font-ui-large);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+  flex-shrink: 0;
+}
+
+.note-architect-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
 }
 
 .note-architect-preview-content {
-	flex: 1;
-	background-color: var(--background-secondary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-l);
-	padding: 16px;
-	overflow-y: auto;
-	height: 0;
-	box-shadow: var(--shadow-s);
+  flex: 1;
+  background-color: var(--background-primary);
+  border: none;
+  border-radius: 0;
+  padding: 16px;
+  overflow-y: auto;
+  height: 0;
+  box-shadow: none;
+}
+
+.note-architect-preview-markdown {
+  padding: 0;
+  margin: 0;
+}
+
+.note-architect-preview-empty {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+  text-align: center;
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+}
+
+.note-architect-preview-empty-title {
+  font-size: var(--font-ui-medium);
+  margin: 0;
+}
+
+.note-architect-preview-empty-hint {
+  font-size: var(--font-ui-small);
+  margin: 0;
+  opacity: 0.8;
 }
 
 /* 预览内容样式 */
 .note-architect-preview-placeholder {
-	color: var(--text-muted);
-	font-style: italic;
-	text-align: center;
-	margin-top: 120px;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  margin-top: 120px;
 }
 
 .note-architect-preview-error {
-	color: var(--text-error);
-	font-size: 12px;
-	margin-bottom: 8px;
+  color: var(--text-error);
+  font-size: 12px;
+  margin-bottom: 8px;
 }
 
 .note-architect-preview-raw {
-	background-color: var(--background-primary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 4px;
-	padding: 8px;
-	font-size: 12px;
-	overflow-x: auto;
-	white-space: pre-wrap;
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
 }
 
-/* 继承Obsidian的默认Markdown样式 */
-
 .note-architect-modal-container {
-	flex: 1;
-	height: 0; /* 强制使用flex布局 */
-	overflow-y: auto;
-	padding: 16px 0;
+  flex: 1;
+  height: 0;
+  /* 强制使用flex布局 */
+  overflow-y: auto;
+  padding: 16px 0;
 }
 
 /* 状态容器样式 - Obsidian 原生风格 */
 .note-architect-status-container {
-	text-align: center;
-	padding: 32px 24px;
-	max-width: 420px;
-	margin: 0 auto;
-	background-color: var(--background-secondary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-xl);
-	box-shadow: var(--shadow-s);
+  text-align: center;
+  padding: 32px 24px;
+  max-width: 420px;
+  margin: 0 auto;
+  background-color: transparent;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-xl);
+  box-shadow: none;
 }
 
 .note-architect-status-header {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 12px;
-	margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--note-architect-gap-md);
+  margin-bottom: 16px;
 }
 
 .note-architect-status-icon {
-	font-size: 48px;
-	line-height: 1;
+  font-size: 48px;
+  line-height: 1;
 }
 
 .note-architect-status-title {
-	margin: 0;
-	font-size: var(--font-ui-large);
-	font-weight: var(--font-semibold);
-	color: var(--text-normal);
+  margin: 0;
+  font-size: var(--font-ui-large);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
 }
 
 .note-architect-status-message {
-	color: var(--text-muted);
-	font-size: var(--font-ui-small);
-	line-height: 1.6;
-	margin: 0 0 24px 0;
-	background-color: var(--background-secondary-alt);
-	padding: 16px;
-	border-radius: var(--radius-m);
-	border: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.6;
+  margin: 0 0 24px 0;
+  background-color: transparent;
+  padding: 16px;
+  border-radius: var(--radius-m);
+  border-left: 3px solid var(--interactive-accent);
+  border-top: 1px solid var(--background-modifier-border);
+  border-right: 1px solid var(--background-modifier-border);
+  border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .note-architect-status-actions {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-	align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--note-architect-gap-md);
+  align-items: center;
 }
-
 
 /* ========================================
    模板列表分区标题样式
    ======================================== */
 
 .note-architect-list-header {
-    font-size: var(--font-ui-small);
-    font-weight: var(--font-semibold);
-    color: var(--text-muted);
-    margin: 24px 0 10px 4px; /* 第一个标题的上边距较大 */
-    padding-bottom: 4px;
-    border-bottom: 1px solid var(--background-modifier-border);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 16px 0 8px 0;
+  padding-bottom: 2px;
+  border-bottom: none;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .note-architect-list-header:first-of-type {
-    margin-top: 0;
+  margin-top: 0;
 }
 
 /* 搜索无结果时的特殊样式 */
-.note-architect-status-container.note-architect-no-results .note-architect-status-icon {
-	color: var(--text-accent);
-	filter: brightness(1.2);
+.note-architect-status-container.note-architect-no-results
+  .note-architect-status-icon {
+  color: var(--text-accent);
+  opacity: 0.9;
 }
 
 .note-architect-status-container.note-architect-no-results {
-	border-color: var(--interactive-accent);
-	background-color: var(--background-primary);
+  border-color: var(--interactive-accent);
+  background-color: transparent;
 }
 
 /* 主题特定优化 */
 .theme-dark .note-architect-status-icon {
-	filter: brightness(1.3) contrast(1.1);
+  color: var(--text-accent);
+  opacity: 0.9;
 }
 
 .theme-light .note-architect-status-icon {
-	filter: brightness(0.9) saturate(1.1);
+  color: var(--text-accent);
+  opacity: 0.85;
 }
 
-.theme-dark .note-architect-status-message {
-	background-color: var(--background-secondary);
-}
-
-.theme-light .note-architect-status-message {
-	background-color: var(--background-primary-alt);
-}
+/* 移除主题特定背景色，使用统一的透明背景 */
 
 .note-architect-no-results {
-	color: var(--text-accent);
-	font-weight: 500;
+  color: var(--text-accent);
+  font-weight: 500;
 }
 
 /* 保留原有的简单空消息样式作为后备 */
 .note-architect-empty-message {
-	text-align: center;
-	color: var(--text-muted);
-	font-style: italic;
-	padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 20px;
 }
 
 /* 搜索框加载状态 */
 .note-architect-search-input.note-architect-search-loading {
-	background-image: linear-gradient(100deg, transparent 40%, var(--interactive-accent) 50%, transparent 60%);
-	background-size: 40px 40px;
+  background-image: linear-gradient(
+    100deg,
+    transparent 40%,
+    var(--interactive-accent) 50%,
+    transparent 60%
+  );
+  background-size: 40px 40px;
+}
+
+.note-architect-binding-list .setting-item {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.note-architect-separator,
+.note-architect-preset-separator {
+  color: var(--text-faint);
 }
 
 .note-architect-template-list {
-	list-style: none;
-	padding: 0;
-	margin: 0;
+  list-style: none;
+  padding: 4px 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* 模板列表项样式 - Obsidian 原生风格 */
 .note-architect-template-item {
-	padding: 16px;
-	border: none;
-	border-radius: var(--radius-m);
-	margin-bottom: 8px;
-	cursor: pointer;
-	background-color: var(--background-secondary);
-	position: relative;
-	overflow: hidden;
-	box-shadow: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 2px;
+  border-radius: var(--radius-s);
+  border: 1px solid transparent;
+  background-color: transparent;
+  cursor: pointer;
+  transition: background-color 0.1s ease, border-color 0.1s ease;
+  box-shadow: none;
+  width: 100%;
+  border-bottom: none;
+}
+/* 模板图标样式 */
+.note-architect-template-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  opacity: 0.8;
 }
 
-/* 选中指示器 */
-.note-architect-template-item::before {
-	content: '';
-	position: absolute;
-	top: 0;
-	left: 0;
-	width: 4px;
-	height: 100%;
-	background: var(--interactive-accent);
-	transform: scaleY(0);
-	transform-origin: center;
-	border-radius: 0 var(--radius-s) var(--radius-s) 0;
+.note-architect-template-item .setting-item-info {
+  padding: 0;
+  margin: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.note-architect-template-item:hover {
-	background-color: var(--background-modifier-hover);
-	box-shadow: var(--shadow-s);
-}
-
-/* 选中状态样式 */
-.note-architect-template-item.note-architect-template-item-selected {
-	background-color: var(--interactive-accent-hover);
-	box-shadow: var(--shadow-s);
-}
-
-.note-architect-template-item.note-architect-template-item-selected::before {
-	width: 4px;
-}
-
-.note-architect-template-item.note-architect-template-item-selected .note-architect-template-name {
-	color: var(--interactive-accent);
-	font-weight: 600;
+.note-architect-template-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .note-architect-template-name {
-	font-size: var(--font-ui-medium);
-	color: var(--text-normal);
-	display: block;
-	position: relative;
-	z-index: 1;
+  font-size: var(--font-ui-medium);
+  color: var(--text-normal);
+  margin: 0;
 }
 
-/* 点击状态样式 */
-.note-architect-template-item:active {
-	box-shadow: var(--shadow-s);
+.note-architect-template-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.note-architect-template-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: var(--radius-s);
+  background-color: var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1;
+}
+
+.note-architect-template-badge-current {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.note-architect-template-badge-recent {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+}
+
+.note-architect-template-path {
+  margin-top: 4px;
+  font-size: var(--font-ui-small);
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Hover 状态 */
+.note-architect-template-item:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+/* Active 状态（键盘导航高亮） */
+.note-architect-template-item.note-architect-template-item-active {
+  background-color: var(--nav-item-background-active);
+  color: var(--text-normal);
+}
+
+.note-architect-template-item.note-architect-template-item-active
+  .note-architect-template-name {
+  font-weight: 500;
+}
+
+/* Selected 状态（选中的模板） */
+.note-architect-template-item.note-architect-template-item-selected {
+  background-color: var(--nav-item-background-active);
+}
+
+.note-architect-template-item.note-architect-template-item-selected
+  .note-architect-template-name {
+  color: var(--text-normal);
+  font-weight: 500;
 }
 
 /* 设置页状态块样式 - Obsidian 原生风格 */
 .note-architect-status-block {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-	padding: 24px;
-	margin: 16px 0;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-l);
-	background-color: var(--background-secondary);
-	box-shadow: var(--shadow-s);
+  display: flex;
+  flex-direction: column;
+  gap: var(--note-architect-gap-md);
+  padding: 24px;
+  margin: 16px 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  background-color: transparent;
+  box-shadow: none;
 }
 
 .note-architect-status-block__header {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	border-bottom: 1px solid var(--background-modifier-border);
-	padding-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: var(--note-architect-gap-md);
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: 8px;
 }
 
 .note-architect-status-block__icon {
-	font-size: 24px;
-	line-height: 1;
+  font-size: 24px;
+  line-height: 1;
 }
 
 .note-architect-status-block__title {
-	font-size: var(--font-ui-medium);
-	font-weight: var(--font-semibold);
-	color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
 }
 
 .note-architect-status-block__items {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .note-architect-status-block__item {
-	display: grid;
-	grid-template-columns: minmax(120px, 0.35fr) 1fr;
-	gap: 12px;
-	align-items: start;
+  display: grid;
+  grid-template-columns: minmax(120px, 0.35fr) 1fr;
+  gap: var(--note-architect-gap-md);
+  align-items: start;
 }
 
 .note-architect-status-block__item--note {
-	grid-template-columns: 1fr;
+  grid-template-columns: 1fr;
 }
 
 .note-architect-status-block__item-label {
-	font-size: 13px;
-	color: var(--text-muted);
-	font-weight: 500;
-	text-transform: none;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: none;
 }
 
 .note-architect-status-block__item-content {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-	font-size: 13px;
-	color: var(--text-normal);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-normal);
 }
 
 .note-architect-status-block__value {
-	line-height: 1.4;
+  line-height: 1.4;
 }
 
 .note-architect-status-block__status {
-	font-weight: 600;
+  font-weight: 600;
 }
 
 .note-architect-status-block__actions {
-	display: flex;
-	gap: 12px;
-	flex-wrap: wrap;
-	padding-top: 4px;
+  display: flex;
+  gap: var(--note-architect-gap-md);
+  flex-wrap: wrap;
+  padding-top: 4px;
 }
 
 /* Obsidian 原生按钮样式 - 已移除所有自定义样式，直接使用 Obsidian 原生按钮类 */
-
-@media (max-width: 700px) {
-	.note-architect-status-block__item {
-		grid-template-columns: 1fr;
-		gap: 4px;
-	}
-}
 
 /* ========================================
    字段配置模态样式 - Obsidian 原生风格
    ======================================== */
 .note-architect-field-config-container {
-	display: flex;
-	flex-direction: column;
-	gap: 24px;
-	padding-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 12px;
 }
 
 /* ========================================
    字段配置 Master-Detail 布局（任务 7）
    ======================================== */
 .note-architect-field-config-layout {
-	display: flex;
-	flex-direction: column;
-	gap: 16px;
-	min-height: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* 调整布局容器，确保填满高度且无多余间隙 */
+  gap: 0;
+  /* 移除左右面板之间的间隙 */
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+  /* 直接使用背景，无额外盒子感 */
+  background-color: var(--background-primary);
+  height: 70vh;
 }
 
 .note-architect-field-config-layout__split {
-	display: flex;
-	gap: 20px;
-	flex: 1;
-	min-height: 0;
+  display: flex;
+  gap: 0;
+  /* 移除间隙 */
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  overflow: hidden;
 }
 
 .note-architect-field-config-layout__master,
 .note-architect-field-config-layout__detail {
-	display: flex;
-	flex-direction: column;
-	min-height: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .note-architect-field-config-layout__master {
-	flex: 0 0 35%;
-	max-width: 360px;
-	min-width: 260px;
+  flex: 0 0 260px;
+  max-width: 280px;
+  min-width: 250px;
 }
 
 .note-architect-field-config-layout__detail {
-	flex: 1;
-	min-width: 0;
+  flex: 1;
+  min-width: 0;
+  background-color: var(--background-primary);
 }
 
+/* 左侧列表容器:使用次级背景色区分层级 */
 .note-architect-master-list {
-	display: flex;
-	flex-direction: column;
-	height: 100%;
-	background-color: var(--background-secondary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-l);
-	box-shadow: var(--shadow-s);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--background-secondary);
+  border: none;
+  border-right: 1px solid var(--background-modifier-border);
+  /* 只保留右边框作为分割 */
+  border-radius: 0;
+  box-shadow: none;
 }
 
-.note-architect-master-list__header,
-.note-architect-master-list__footer {
-	padding: 16px 20px;
+.note-architect-master-list__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background-color: var(--background-secondary);
+}
+
+.note-architect-master-list__header-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
 }
 
 .note-architect-master-list__header h3 {
-	margin: 0;
-	font-size: var(--font-ui-large);
-	font-weight: var(--font-semibold);
-	color: var(--text-normal);
+  margin: 0;
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
 }
 
+/* 列表区域内边距调整 */
 .note-architect-master-list__items {
-	flex: 1;
-	min-height: 0;
-	padding: 0 20px 12px 20px;
-	overflow-y: auto;
-	position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  /* 移除内边距，让列表贴边 */
+  overflow-y: auto;
+  position: relative;
 }
 
+/* 移除列表项之间的间距，改用 border-bottom 分割 */
 .note-architect-master-list__item + .note-architect-master-list__item {
-	margin-top: 8px;
+  margin-top: 0;
 }
 
 .note-architect-master-list__items--virtualized {
-	display: block;
+  display: block;
 }
 
 .note-architect-master-list__virtual-spacer {
-	width: 100%;
-	height: 0;
-	flex-shrink: 0;
-	pointer-events: none;
+  width: 100%;
+  height: 0;
+  flex-shrink: 0;
+  pointer-events: none;
 }
 
 .note-architect-master-list__virtual-items {
-	display: flex;
-	flex-direction: column;
-}
-
-.note-architect-master-list__items::-webkit-scrollbar {
-	width: 8px;
-}
-
-.note-architect-master-list__items::-webkit-scrollbar-thumb {
-	background: var(--background-modifier-border);
-	border-radius: var(--radius-s);
-}
-
-.note-architect-master-list__items::-webkit-scrollbar-thumb:hover {
-	background: var(--interactive-accent);
+  display: flex;
+  flex-direction: column;
 }
 
 .note-architect-master-list__empty {
-	padding: 32px 16px;
-	text-align: center;
-	color: var(--text-muted);
-	font-size: var(--font-ui-medium);
-	background-color: var(--background-secondary-alt);
-	border: 1px dashed var(--background-modifier-border);
-	border-radius: var(--radius-m);
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-ui-medium);
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
 }
 
+/* 列表项：扁平化，移除圆角和间距 */
 .note-architect-master-list__item {
-	display: flex;
-	align-items: stretch;
-	gap: 12px;
-	padding: 12px 14px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
-	background-color: var(--background-primary);
-	cursor: pointer;
-	transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease,
-		opacity 160ms ease, transform 160ms ease;
+  display: flex;
+  align-items: stretch;
+  gap: var(--note-architect-gap-md);
+  margin: 0;
+  /* 移除列表项外边距，避免额外间距 */
+  padding: 12px 16px;
+  border: none;
+  border-bottom: 1px solid var(--background-modifier-border);
+  border-radius: 0;
+  background-color: transparent;
+  cursor: pointer;
+  position: relative;
+  /* 用于定位选中条 */
+  transition: background-color 120ms ease, opacity 160ms ease,
+    transform 160ms ease;
 }
 
+/* 鼠标悬停效果 */
 .note-architect-master-list__item:hover {
-	border-color: var(--interactive-accent);
+  background-color: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border);
 }
 
 .note-architect-master-list__item:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 2px;
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
 }
 
+/* 选中状态:使用原生激活色 */
 .note-architect-master-list__item.is-selected {
-	border-color: var(--interactive-accent);
-	background-color: var(--interactive-accent-hover);
-	box-shadow: inset 0 0 0 1px var(--interactive-accent);
+  background-color: var(--nav-item-background-active);
+  border-color: var(--background-modifier-border);
+  box-shadow: none;
+}
+
+/* 选中时的左侧高亮条 (Obsidian 风格) */
+.note-architect-master-list__item.is-selected::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: var(--interactive-accent);
+  border-radius: 0;
 }
 
 .note-architect-master-list__item--dragging {
-	opacity: 0.7;
+  opacity: 0.7;
 }
 
 .note-architect-master-list__item--drag-over-before,
-.note-architect-master-list__item--drag-over-after {
-	border-color: var(--interactive-accent);
-	background-color: var(--interactive-accent-hover);
+.note-architect-master-list__item--drag-over-after,
+.note-architect-field-item--drag-over-before,
+.note-architect-field-item--drag-over-after {
+  border-color: var(--interactive-accent);
+  background-color: var(--interactive-accent-hover);
+}
+
+.note-architect-master-list__item--drag-over-before,
+.note-architect-field-item--drag-over-before {
+  box-shadow: 0 -3px 0 var(--interactive-accent);
+}
+
+.note-architect-master-list__item--drag-over-after,
+.note-architect-field-item--drag-over-after {
+  box-shadow: 0 3px 0 var(--interactive-accent);
 }
 
 .note-architect-master-list__item--drag-over-before {
-	box-shadow: 0 -3px 0 var(--interactive-accent);
-	transform: translateY(-6px);
+  transform: translateY(-6px);
 }
 
 .note-architect-master-list__item--drag-over-after {
-	box-shadow: 0 3px 0 var(--interactive-accent);
-	transform: translateY(6px);
+  transform: translateY(6px);
 }
 
 .note-architect-master-list__item--entering {
-	animation: note-architect-master-list-item-enter 180ms ease;
+  animation: note-architect-master-list-item-enter 180ms ease;
 }
 
+/* 拖拽手柄样式微调 */
 .note-architect-master-list__drag-handle {
-	font-size: 18px;
-	line-height: 1;
-	cursor: grab;
-	user-select: none;
-	color: var(--text-muted);
-	padding: 6px;
-	border-radius: var(--radius-s);
+  font-size: 18px;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+  color: var(--text-faint);
+  padding: 6px;
+  border-radius: var(--radius-s);
+  margin-right: 8px;
 }
 
 .note-architect-master-list__drag-handle:hover {
-	color: var(--text-normal);
-	background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+  background-color: var(--background-modifier-hover);
 }
 
 .note-architect-master-list__drag-handle:active {
-	cursor: grabbing;
+  cursor: grabbing;
 }
 
 .note-architect-master-list__item-content {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .note-architect-master-list__item-title {
-	margin: 0;
-	font-size: var(--font-ui-medium);
-	font-weight: var(--font-semibold);
-	color: var(--text-normal);
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+  margin: 0;
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .note-architect-master-list__item-subtitle {
-	margin: 0;
-	font-size: var(--font-ui-small);
-	color: var(--text-muted);
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+  margin: 0;
+  font-size: var(--font-ui-small);
+  color: var(--text-faint);
+  font-family: var(--font-monospace);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.note-architect-master-list__footer {
-	border-top: 1px solid var(--background-modifier-border);
-	display: flex;
-	justify-content: flex-end;
+.note-architect-master-list__item.is-selected
+  .note-architect-master-list__item-title {
+  color: var(--text-normal);
 }
 
+.note-architect-master-list__item.is-selected
+  .note-architect-master-list__item-subtitle {
+  color: var(--text-muted);
+}
+
+/* 添加按钮 - 图标样式 */
 .note-architect-master-list__add-btn {
-	width: 100%;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-m);
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1;
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 
+.note-architect-master-list__add-btn:hover {
+  background-color: var(--interactive-accent-hover);
+  transform: scale(1.05);
+}
+
+.note-architect-master-list__add-btn:active {
+  transform: scale(0.95);
+}
+
+/* 右侧详情容器：去除背景色和阴影 */
 .note-architect-detail-panel {
-	display: flex;
-	flex-direction: column;
-	height: 100%;
-	background-color: var(--background-secondary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-l);
-	box-shadow: var(--shadow-s);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--background-primary);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
+/* 右侧头部:与主体融合 */
 .note-architect-detail-panel__header {
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	gap: 12px;
-	padding: 18px 24px 16px 24px;
-	border-bottom: 1px solid var(--background-modifier-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--note-architect-gap-sm);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background-color: var(--background-primary);
 }
 
 .note-architect-detail-panel__title-group h3 {
-	margin: 0;
-	font-size: var(--font-ui-large);
-	font-weight: var(--font-semibold);
-	color: var(--text-normal);
+  margin: 0;
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+
+.note-architect-detail-panel__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .note-architect-detail-panel__subtitle {
-	color: var(--text-muted);
-	font-size: var(--font-small);
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
 }
 
 .note-architect-detail-panel__actions {
-	display: flex;
-	align-items: center;
-	gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: var(--note-architect-gap-sm);
 }
 
 .note-architect-detail-panel__back-btn {
-	display: none;
+  display: none;
 }
 
 .note-architect-detail-panel__delete-btn {
-	min-width: 0;
+  min-width: 0;
 }
 
+/* 右侧主体内容 */
 .note-architect-detail-panel__body {
-	flex: 1;
-	min-height: 0;
-	padding: 20px 24px 24px 24px;
-	overflow-y: auto;
-	display: flex;
-	flex-direction: column;
-	gap: 20px;
+  flex: 1;
+  min-height: 0;
+  padding: 12px 20px 16px;
+  background-color: var(--background-primary);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .note-architect-detail-panel__empty {
-	text-align: center;
-	padding: 48px 24px;
-	color: var(--text-muted);
-	border: 1px dashed var(--background-modifier-border);
-	border-radius: var(--radius-m);
-	background-color: var(--background-secondary-alt);
+  text-align: center;
+  padding: 32px 8px;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
 }
 
 .note-architect-detail-panel__body h3 {
-	margin-top: 0;
+  margin-top: 0;
 }
 
+/* 移除内部表单容器的边框和阴影，直接铺在面板上 */
 .note-architect-detail-panel__form-container {
-	background-color: var(--background-primary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-l);
-	padding: 16px;
-	box-shadow: var(--shadow-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
 .note-architect-detail-panel__empty.is-hidden,
 .note-architect-detail-panel__form-container.is-hidden {
-	display: none;
+  display: none;
 }
 
 .note-architect-detail-panel__section--fade-in {
-	animation: note-architect-detail-panel-section-fade 200ms ease;
+  animation: note-architect-detail-panel-section-fade 200ms ease;
 }
 
 @media (max-width: 640px) {
-	.note-architect-field-config-layout__split {
-		position: relative;
-		overflow: hidden;
-		height: 100%;
-	}
+  .note-architect-field-config-layout__split {
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+  }
 
-	.note-architect-field-config-layout__master,
-	.note-architect-field-config-layout__detail {
-		flex: none;
-		width: 100%;
-		min-width: 0;
-		max-width: none;
-		height: 100%;
-		transition: transform 200ms ease;
-	}
+  .note-architect-field-config-layout__master,
+  .note-architect-field-config-layout__detail {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: 100%;
+    transition: transform 200ms ease;
+  }
 
-	.note-architect-field-config-layout__detail {
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		transform: translateX(100%);
-		z-index: 2;
-	}
+  .note-architect-field-config-layout__detail {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transform: translateX(100%);
+    z-index: 2;
+  }
 
-	.note-architect-field-config-layout__master {
-		transform: translateX(0);
-		z-index: 1;
-	}
+  .note-architect-field-config-layout__master {
+    transform: translateX(0);
+    z-index: 1;
+  }
 
-	.note-architect-field-config-layout.detail-view-active .note-architect-field-config-layout__master {
-		transform: translateX(-100%);
-	}
+  .note-architect-field-config-layout.detail-view-active
+    .note-architect-field-config-layout__master {
+    transform: translateX(-100%);
+  }
 
-	.note-architect-field-config-layout.detail-view-active .note-architect-field-config-layout__detail {
-		transform: translateX(0);
-	}
+  .note-architect-field-config-layout.detail-view-active
+    .note-architect-field-config-layout__detail {
+    transform: translateX(0);
+  }
 
-	.note-architect-master-list,
-	.note-architect-detail-panel {
-		height: 100%;
-	}
+  .note-architect-master-list,
+  .note-architect-detail-panel {
+    height: 100%;
+  }
 
-	.note-architect-detail-panel__back-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 4px;
-	}
+  .note-architect-detail-panel__back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
 }
 
 @keyframes note-architect-master-list-item-enter {
-	from {
-		opacity: 0;
-		transform: translateY(6px) scale(0.995);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0) scale(1);
-	}
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.995);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes note-architect-detail-panel-section-fade {
-	from {
-		opacity: 0;
-		transform: translateY(8px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.note-architect-master-list__item,
-	.note-architect-detail-panel__form-container,
-	.note-architect-detail-panel__empty {
-		transition: none !important;
-		animation: none !important;
-	}
+  .note-architect-master-list__item,
+  .note-architect-detail-panel__form-container,
+  .note-architect-detail-panel__empty {
+    transition: none !important;
+    animation: none !important;
+  }
 
-	.note-architect-master-list__item--entering,
-	.note-architect-detail-panel__section--fade-in {
-		animation: none !important;
-	}
+  .note-architect-master-list__item--entering,
+  .note-architect-detail-panel__section--fade-in {
+    animation: none !important;
+  }
 
-	.note-architect-master-list__item--drag-over-before,
-	.note-architect-master-list__item--drag-over-after {
-		transform: none !important;
-	}
+  .note-architect-master-list__item--drag-over-before,
+  .note-architect-master-list__item--drag-over-after {
+    transform: none !important;
+  }
 }
 
 .note-architect-fields-list {
-	display: flex;
-	flex-direction: column;
-	gap: 16px;
-	max-height: calc(70vh - 140px);
-	overflow-y: auto;
-	padding-right: 4px;
-}
-
-/* 自定义滚动条 - Obsidian 原生风格 */
-.note-architect-fields-list::-webkit-scrollbar {
-	width: 8px;
-}
-
-.note-architect-fields-list::-webkit-scrollbar-track {
-	background: var(--background-secondary-alt);
-	border-radius: var(--radius-s);
-}
-
-.note-architect-fields-list::-webkit-scrollbar-thumb {
-	background: var(--background-modifier-border);
-	border-radius: var(--radius-s);
-}
-
-.note-architect-fields-list::-webkit-scrollbar-thumb:hover {
-	background: var(--interactive-accent);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(70vh - 140px);
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .note-architect-field-item {
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-l);
-	padding: 16px 24px;
-	background-color: var(--background-secondary);
-	box-shadow: var(--shadow-s);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  padding: 16px 24px;
+  background-color: transparent;
+  box-shadow: none;
 }
 
 .note-architect-field-item:hover {
-	box-shadow: var(--shadow-s);
-	border-color: var(--interactive-accent);
+  box-shadow: none;
+  border-color: var(--interactive-accent);
+  background-color: var(--background-modifier-hover);
 }
 
 .note-architect-field-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-	margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--note-architect-gap-md);
+  margin-bottom: 12px;
 }
 
 .note-architect-field-header__left {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  gap: var(--note-architect-gap-sm);
+  flex-wrap: wrap;
 }
 
 .note-architect-field-header__actions {
-	display: flex;
-	align-items: center;
-	gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: var(--note-architect-gap-sm);
 }
 
 .note-architect-field-header__summary {
-	display: block;
-	font-size: 12px;
-	color: var(--text-muted);
-	line-height: 1.4;
-	width: 100%;
-	margin-left: 26px;
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  width: 100%;
+  margin-left: 26px;
 }
 
 .note-architect-field-header__summary:empty {
-	display: none;
+  display: none;
 }
 
 /* 拖拽手柄 - Obsidian 原生风格 */
 .note-architect-field-drag-handle {
-	font-size: 20px;
-	cursor: grab;
-	user-select: none;
-	color: var(--text-muted);
-	padding: 4px 8px;
-	border-radius: var(--radius-s);
+  font-size: 20px;
+  cursor: grab;
+  user-select: none;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  border-radius: var(--radius-s);
 }
 
 .note-architect-field-drag-handle:hover {
-	background-color: var(--background-modifier-hover);
-	color: var(--text-normal);
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
 }
 
 .note-architect-field-drag-handle:active {
-	cursor: grabbing;
-	background-color: var(--interactive-accent-hover);
-	color: var(--interactive-accent);
+  cursor: grabbing;
+  background-color: var(--interactive-accent-hover);
+  color: var(--interactive-accent);
 }
 
 /* 拖拽状态 - Obsidian 原生风格 */
 .note-architect-field-item--dragging {
-	opacity: 0.6;
-	box-shadow: var(--shadow-l);
-}
-
-.note-architect-field-item--drag-over-before,
-.note-architect-field-item--drag-over-after {
-	border-color: var(--interactive-accent);
-	background-color: var(--interactive-accent-hover);
-}
-
-.note-architect-field-item--drag-over-before {
-	box-shadow: 0 -3px 0 var(--interactive-accent);
-}
-
-.note-architect-field-item--drag-over-after {
-	box-shadow: 0 3px 0 var(--interactive-accent);
+  opacity: 0.6;
+  box-shadow: var(--shadow-l);
 }
 
 .note-architect-field-item--collapsed {
-	padding-bottom: 12px;
+  padding-bottom: 12px;
 }
 
 .note-architect-field-item--collapsed .note-architect-field-header {
-	margin-bottom: 4px;
+  margin-bottom: 4px;
 }
 
 .note-architect-field-header h4 {
-	margin: 0;
-	font-size: 15px;
-	color: var(--text-normal);
-	font-weight: 600;
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-normal);
+  font-weight: 600;
 }
 
 .note-architect-field-header--collapsible {
-	cursor: pointer;
+  cursor: pointer;
 }
 
 .note-architect-field-header--collapsible:hover {
-	background-color: var(--background-modifier-hover);
+  background-color: var(--background-modifier-hover);
 }
 
 .note-architect-field-header--collapsible:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 2px;
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
 }
 
 .note-architect-field-header--collapsed .note-architect-field-header__summary {
-	color: var(--text-faint);
+  color: var(--text-faint);
 }
 
 .note-architect-field-config {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .note-architect-field-config.note-architect-field-config--collapsed {
-	display: none;
+  display: none;
 }
 
+/* 字段行样式优化:移除分割线,改用间距分割 */
 .note-architect-field-row {
-	display: grid;
-	grid-template-columns: 140px 1fr;
-	gap: 12px;
-	align-items: center;
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: var(--note-architect-gap-sm);
+  align-items: center;
+  margin: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.note-architect-field-row:last-child {
+  border-bottom: none;
 }
 
 .note-architect-field-row--error .note-architect-field-label {
-	color: var(--color-red, #cc3d3d);
+  color: var(--text-error);
 }
 
 .note-architect-field-row--stacked {
-	grid-template-columns: 1fr;
-	align-items: flex-start;
+  grid-template-columns: 1fr;
+  align-items: flex-start;
 }
 
 /* 确保select元素有足够宽度 */
 .note-architect-field-row select {
-	min-width: 0;
-	max-width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .note-architect-field-label {
-	font-size: 14px;
-	font-weight: 500;
-	color: var(--text-muted);
-	text-transform: none;
-	line-height: 1.5;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-normal);
+  text-transform: none;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  display: block;
 }
 
 /* Obsidian 原生输入框样式 - 统一尺寸 */
-.note-architect-field-input,
-.note-architect-preset-name-input {
-	width: 100%;
-	padding: 10px 12px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	background-color: var(--background-secondary);
-	color: var(--text-normal);
-	font-size: 14px;
-	font-weight: 400;
-	line-height: 1.5;
-	box-sizing: border-box;
-	outline: none;
-	min-height: 40px;
-}
-
-.note-architect-field-input:hover,
-.note-architect-preset-name-input:hover {
-	border-color: var(--interactive-accent);
-	background-color: var(--background-modifier-hover);
-}
-
-.note-architect-field-input--error {
-	border-color: var(--color-red, #cc3d3d);
-	box-shadow: 0 0 0 1px rgba(204, 61, 61, 0.3);
-}
-
-.note-architect-field-input:focus,
-.note-architect-preset-name-input:focus {
-	border-color: var(--interactive-accent);
-	border-width: 2px;
-	padding: 9px 11px;
-	background-color: var(--background-primary);
+.note-architect-field-input {
+  padding: 6px 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  min-height: 32px;
 }
 
 /* Select 下拉框 - 统一尺寸 */
+.note-architect-field-select,
+.note-architect-form-select {
+  position: relative;
+  background-image: none;
+}
+
+.note-architect-field-select::after,
+.note-architect-form-select::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 12px;
+  height: 12px;
+  transform: translateY(-50%);
+  background-color: currentColor;
+  -webkit-mask-image: var(--note-architect-select-arrow);
+  mask-image: var(--note-architect-select-arrow);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 12px;
+  mask-size: 12px;
+  -webkit-mask-position: center;
+  mask-position: center;
+  pointer-events: none;
+}
+
 .note-architect-field-select {
-	padding: 10px 32px 10px 12px;
-	min-height: 40px;
-	width: 100%;
-	appearance: none;
-	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-	background-repeat: no-repeat;
-	background-position: right 12px center;
-	background-size: 12px;
-	font-size: 14px;
-	font-weight: 400;
-	line-height: 1.5;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	background-color: var(--background-secondary);
-	color: var(--text-normal);
-}
-
-.note-architect-field-select:hover {
-	border-color: var(--interactive-accent);
-	background-color: var(--background-modifier-hover);
-}
-
-.note-architect-field-select:focus {
-	padding: 9px 31px 9px 11px;
-	border-color: var(--interactive-accent);
-	border-width: 2px;
-	background-color: var(--background-primary);
+  padding: 6px 32px 10px 12px;
+  min-height: 32px;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 .note-architect-options-list--error {
-	box-shadow: inset 0 0 0 1px var(--color-red, #cc3d3d);
-	border-radius: var(--radius-s);
-	padding: 4px;
+  box-shadow: none;
+  border-radius: var(--radius-s);
+  padding: 4px 8px;
+  border: 1px solid var(--text-error);
 }
 
 .note-architect-field-error {
-	grid-column: 1 / -1;
-	font-size: 12px;
-	color: var(--color-red, #cc3d3d);
-	margin-top: 4px;
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--text-error);
+  margin-top: 4px;
 }
 
 .note-architect-field-select option {
-	padding: 8px 12px;
-	font-size: 14px;
-	line-height: 1.5;
-	background-color: var(--background-primary);
-	color: var(--text-normal);
-}
-
-/* 暗色主题下的select箭头 */
-.theme-dark .note-architect-field-select {
-	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aaa' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
 }
 
 .note-architect-options-list {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--note-architect-gap-sm);
+  width: 100%;
+  margin-top: 4px;
 }
 
 .note-architect-option-item {
-	display: grid;
-	grid-template-columns: 1fr auto;
-	gap: 8px;
-	align-items: center;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--note-architect-gap-sm);
+  align-items: center;
+  padding: 4px 0;
 }
 
-.note-architect-field-options__btn {
-	align-self: flex-start;
-	margin-top: 8px;
+.note-architect-field-options__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--note-architect-gap-sm);
+  margin-top: 8px;
 }
 
-.note-architect-field-options__remove {
-	padding: 6px 10px;
+.note-architect-field-options__add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--interactive-accent);
+  background-color: transparent;
+  transition: border-color 120ms ease, background-color 120ms ease,
+    color 120ms ease;
+}
+
+.note-architect-field-options__add:hover {
+  border-color: var(--interactive-accent);
+  background-color: var(--background-modifier-hover);
+}
+
+.note-architect-option-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  background-color: transparent;
+  transition: color 120ms ease, background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.note-architect-option-remove:hover {
+  color: var(--interactive-accent);
+  background-color: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border);
 }
 
 .note-architect-field-config-actions {
-	display: flex;
-	align-items: center;
-	justify-content: flex-end;
-	flex-wrap: wrap;
-	gap: 12px;
-	border-top: 1px solid var(--background-modifier-border);
-	padding-top: 12px;
-	margin-top: -8px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--note-architect-gap-md);
+  border-top: 1px solid var(--background-modifier-border);
+  padding: 12px 0 0;
+  margin-top: 12px;
+  position: sticky;
+  bottom: 0;
+  background-color: var(--background-primary);
 }
 
 .note-architect-field-config-actions__divider {
-	color: var(--text-muted);
+  color: var(--text-muted);
 }
 
 .note-architect-field-config-actions__btn {
-	min-width: 120px;
+  min-width: 120px;
 }
 
 .note-architect-empty-fields {
-	margin: 0;
-	padding: 24px;
-	border: 2px dashed var(--background-modifier-border);
-	border-radius: var(--radius-m);
-	background-color: var(--background-secondary-alt);
-	text-align: center;
-	color: var(--text-muted);
-	font-size: var(--font-ui-small);
-}
-
-
-
-@media (max-width: 700px) {
-	.note-architect-field-row {
-		grid-template-columns: 1fr;
-	}
-
-	.note-architect-field-config-actions {
-		justify-content: center;
-	}
-}
-
-/* 主题特定优化 */
-.theme-dark .note-architect-template-item {
-	background-color: var(--background-secondary);
-	border-color: var(--background-modifier-border-2);
-}
-
-.theme-dark .note-architect-template-item:hover {
-	background-color: var(--background-modifier-hover);
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.theme-light .note-architect-template-item {
-	background-color: var(--background-primary-alt);
-}
-
-.theme-light .note-architect-template-item:hover {
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-
-.note-architect-template-item.note-architect-template-item-active {
-	background-color: var(--background-modifier-hover);
-	border-color: var(--interactive-accent);
-}
-
-/* 响应式布局 */
-@media (max-width: 768px) {
-	.note-architect-main-container {
-		flex-direction: column;
-		gap: 10px;
-		height: 550px; /* 固定高度 */
-		max-height: 550px;
-	}
-
-	.note-architect-left-container {
-		border-right: none;
-		border-bottom: 1px solid var(--background-modifier-border);
-		padding-right: 0;
-		padding-bottom: 12px;
-		flex: 1;
-		height: auto;
-	}
-
-	.note-architect-preview-container {
-		padding-left: 0;
-		padding-top: 0;
-		height: 220px; /* 固定高度 */
-		flex: none; /* 不自动伸缩 */
-	}
-
-	.note-architect-preview-content {
-		height: calc(100% - 30px); /* 减去标题高度 */
-	}
-
-	.note-architect-modal-container {
-		flex: 1;
-		height: 0;
-	}
-
-	.note-architect-preview-placeholder {
-		margin-top: 60px;
-	}
-
-	/* 移动端状态容器优化 */
-	.note-architect-status-container {
-		padding: 30px 16px;
-		max-width: none;
-		margin: 0 8px;
-	}
-
-	.note-architect-status-header {
-		flex-direction: column;
-		gap: 8px;
-		text-align: center;
-	}
-
-	.note-architect-status-icon {
-		font-size: 28px;
-		padding: 8px;
-	}
-
-	.note-architect-status-title {
-		font-size: 16px;
-		margin: 8px 0;
-	}
-
-	.note-architect-status-message {
-		font-size: 13px;
-		line-height: 1.6;
-		padding: 16px;
-		margin: 16px 0;
-	}
-
-	.note-architect-status-actions {
-		gap: 12px;
-		width: 100%;
-	}
-
-
-	/* 移动端搜索框优化 */
-	.note-architect-search-container {
-		padding: 12px 16px;
-		margin: 0 0 12px 0;
-	}
-
-	.note-architect-search-input {
-		padding: 14px 36px 14px 16px; /* 保持右侧按钮空间 */
-		font-size: 16px; /* 防止iOS缩放 */
-		border-radius: var(--radius-xl);
-	}
-
-	/* 移动端模板列表项优化 */
-	.note-architect-template-item {
-		padding: 16px;
-		margin-bottom: 10px;
-		border-radius: var(--radius-m);
-		min-height: 52px; /* 最小触摸目标 */
-		display: flex;
-		align-items: center;
-		-webkit-tap-highlight-color: transparent;
-	}
-
-	.note-architect-template-name {
-		font-size: 15px;
-		line-height: 1.4;
-	}
-}
-
-@media (max-width: 480px) {
-	/* 只覆盖需要在小屏幕上进一步调整的样式 */
-	.note-architect-main-container {
-		margin: 8px 0;
-		height: 500px; /* 小屏幕固定高度 */
-	}
-
-	.note-architect-search-container {
-		padding: 12px 8px;
-		margin: 0 0 8px 0;
-	}
-
-	.note-architect-left-container {
-		padding: 0 8px;
-	}
-
-	.note-architect-preview-container {
-		padding: 0 8px;
-		height: 200px; /* 小屏幕固定高度 */
-	}
-
-	.note-architect-modal-container {
-		padding: 8px 0;
-	}
-
-	/* 小屏幕状态容器优化 - 只调整需要改变的属性 */
-	.note-architect-status-container {
-		padding: 24px 12px;
-		margin: 0 4px;
-	}
-
-	.note-architect-status-icon {
-		font-size: 24px;
-		padding: 6px;
-	}
-
-	.note-architect-status-title {
-		font-size: 15px;
-		margin: 6px 0;
-	}
-
-	.note-architect-status-message {
-		font-size: 12px;
-		padding: 12px;
-		margin: 12px 0;
-	}
-
-	.note-architect-status-actions {
-		gap: 10px;
-	}
-
-
-	/* 小屏幕搜索框进一步优化 - 只调整需要改变的属性 */
-	.note-architect-search-input {
-		padding: 16px 36px 16px 16px; /* 保持右侧按钮空间 */
-	}
-
-	/* 小屏幕模板列表项进一步优化 - 只调整需要改变的属性 */
-	.note-architect-template-item {
-		padding: 18px 16px;
-		margin-bottom: 12px;
-		min-height: 56px; /* 增大最小触摸目标 */
-	}
-
-	.note-architect-template-name {
-		font-size: 16px;
-		line-height: 1.3;
-	}
-
-	/* 小屏幕预览容器优化 */
-	.note-architect-preview-title {
-		font-size: 15px;
-		margin-bottom: 10px;
-	}
+  margin: 0;
+  padding: 24px;
+  border: 2px dashed var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background-color: rgba(0, 0, 0, 0.03);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
 }
 
 /* ========================================
@@ -1420,170 +1560,125 @@ Note Architect - Obsidian Native Style
 
 /* 表单标题样式 */
 .note-architect-form-title {
-	margin: 0 0 12px 0;
-	font-size: 20px;
-	font-weight: 600;
-	color: var(--text-normal);
-	padding-bottom: 8px;
-	border-bottom: 1px solid var(--background-modifier-border);
+  margin: 0 0 12px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-normal);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
 }
 
 /* 表单主容器 */
 .note-architect-frontmatter-manager-container {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-	padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--note-architect-gap-md);
+  padding: 8px 0;
 }
 
 /* 说明区域样式 */
 .note-architect-form-description {
-	background-color: var(--background-secondary-alt);
-	border-left: 3px solid var(--interactive-accent);
-	border-radius: var(--radius-s);
-	padding: 8px 12px;
-	margin: 0;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-left: 4px solid var(--interactive-accent);
+  border-radius: var(--radius-m);
+  padding: 12px 16px;
+  margin: 0 0 20px 0;
 }
 
 .note-architect-form-description-text {
-	margin: 0;
-	color: var(--text-normal);
-	font-size: 13px;
-	line-height: 1.5;
+  margin: 0;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  line-height: 1.6;
 }
 
 /* 表单容器样式 */
 .note-architect-form-container {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-	max-height: 55vh;
-	overflow-y: auto;
-	padding: 4px;
-}
-
-/* 自定义滚动条 */
-.note-architect-form-container::-webkit-scrollbar {
-	width: 8px;
-}
-
-.note-architect-form-container::-webkit-scrollbar-track {
-	background: var(--background-secondary-alt);
-	border-radius: var(--radius-s);
-}
-
-.note-architect-form-container::-webkit-scrollbar-thumb {
-	background: var(--background-modifier-border);
-	border-radius: var(--radius-s);
-}
-
-.note-architect-form-container::-webkit-scrollbar-thumb:hover {
-	background: var(--interactive-accent);
+  display: flex;
+  flex-direction: column;
+  gap: var(--note-architect-gap-md);
+  max-height: 55vh;
+  overflow-y: auto;
+  padding: 4px;
 }
 
 /* 表单字段样式 */
 .note-architect-form-field {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.note-architect-form-field:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 .note-architect-form-label {
-	font-size: 13px;
-	color: var(--text-muted);
-	font-weight: 600;
-	margin-bottom: 0;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .note-architect-form-field--error .note-architect-form-label {
-	color: var(--color-red, #cc3d3d);
+  color: var(--text-error);
 }
 
 /* 表单输入框样式 - 紧凑尺寸 */
 .note-architect-form-input,
 .note-architect-form-select {
-	width: 100%;
-	padding: 8px 12px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	background-color: var(--background-secondary);
-	color: var(--text-normal);
-	font-size: 14px;
-	line-height: 1.5;
-	box-sizing: border-box;
-	outline: none;
-	min-height: 36px;
-	transition: all 0.2s ease;
-}
-
-.note-architect-form-input:hover,
-.note-architect-form-select:hover {
-	border-color: var(--interactive-accent);
-	background-color: var(--background-modifier-hover);
-}
-
-.note-architect-form-input--error,
-.note-architect-form-select.note-architect-form-input--error {
-	border-color: var(--color-red, #cc3d3d);
-	box-shadow: 0 0 0 1px rgba(204, 61, 61, 0.3);
-}
-
-.note-architect-form-input:focus,
-.note-architect-form-select:focus {
-	border-color: var(--interactive-accent);
-	border-width: 2px;
-	padding: 7px 11px;
-	background-color: var(--background-primary);
-	box-shadow: 0 0 0 1px var(--interactive-accent);
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 36px;
 }
 
 /* Select 下拉框特殊样式 */
 .note-architect-form-select {
-	padding: 8px 32px 8px 12px;
-	appearance: none;
-	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-	background-repeat: no-repeat;
-	background-position: right 12px center;
-	background-size: 12px;
-	cursor: pointer;
-}
-
-.note-architect-form-select:focus {
-	padding: 7px 31px 7px 11px;
-}
-
-.theme-dark .note-architect-form-select {
-	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aaa' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  padding: 8px 32px 8px 12px;
 }
 
 /* 多选框容器样式 */
 .note-architect-multi-select-container {
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	padding: 4px;
-	background-color: var(--background-secondary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-}
-
-.note-architect-multi-select-container--error {
-	border-color: var(--color-red, #cc3d3d);
-	box-shadow: 0 0 0 1px rgba(204, 61, 61, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  background-color: transparent;
+  border: none;
 }
 
 .note-architect-checkbox-container {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 4px 8px;
-	border-radius: var(--radius-s);
-	cursor: pointer;
-	transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: var(--note-architect-gap-sm);
+  padding: 8px 12px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  background-color: var(--background-primary);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .note-architect-checkbox-container:hover {
-	background-color: var(--background-modifier-hover);
+  background-color: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+  box-shadow: var(--shadow-s);
+}
+
+.note-architect-checkbox-container.is-checked,
+.note-architect-checkbox-container:has(input:checked) {
+  background-color: var(--background-secondary-alt);
+  border-color: var(--interactive-accent);
 }
 
 /*
@@ -1592,123 +1687,104 @@ Note Architect - Obsidian Native Style
   * 确保"单选"和"多选"在视觉上完全一致
   */
 .note-architect-form-checkbox {
-	-webkit-appearance: none;
-	appearance: none;
-	background-color: var(--background-secondary);
-	margin: 0;
-	font: inherit;
-	color: var(--interactive-accent);
-	width: 16px;
-	height: 16px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	transform: translateY(2px);
-	display: inline-grid;
-	place-content: center;
-	cursor: pointer;
-	transition: all 120ms ease-in-out;
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--background-secondary);
+  margin: 0;
+  font: inherit;
+  color: var(--interactive-accent);
+  width: 1em;
+  height: 1em;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  transform: translateY(2px);
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+  transition: all 120ms ease-in-out;
 }
 
 .note-architect-form-checkbox::before {
-	content: "";
-	width: 10px;
-	height: 10px;
-	transform: scale(0);
-	transition: 120ms transform ease-in-out;
-	background-color: white;
-	-webkit-mask-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23000' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M3 8l3 3 7-7'/%3e%3c/svg%3e");
-	mask-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23000' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M3 8l3 3 7-7'/%3e%3c/svg%3e");
-	-webkit-mask-size: contain;
-	mask-size: contain;
+  content: "";
+  width: 10px;
+  height: 10px;
+  transform: scale(0);
+  transition: 120ms transform ease-in-out;
+  background-color: white;
+  -webkit-mask-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23000' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M3 8l3 3 7-7'/%3e%3c/svg%3e");
+  mask-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23000' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M3 8l3 3 7-7'/%3e%3c/svg%3e");
+  -webkit-mask-size: contain;
+  mask-size: contain;
 }
 
 .note-architect-form-checkbox:checked::before {
-	transform: scale(1);
+  transform: scale(1);
 }
 
 .note-architect-form-checkbox:checked {
-	background-color: var(--interactive-accent);
-	border-color: var(--interactive-accent);
+  background-color: var(--interactive-accent);
+  border-color: var(--interactive-accent);
 }
 
 .note-architect-form-checkbox:hover {
-	border-color: var(--interactive-accent-hover);
+  border-color: var(--interactive-accent-hover);
 }
 
 .note-architect-form-checkbox:focus {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 2px;
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
 }
 
 .note-architect-form-error {
-	font-size: 12px;
-	color: var(--color-red, #cc3d3d);
-	margin-top: -2px;
+  font-size: 12px;
+  color: var(--text-error);
+  margin-top: -2px;
 }
 
 .note-architect-checkbox-label {
-	font-size: 14px;
-	line-height: 1.5;
-	color: var(--text-normal);
-	cursor: pointer;
-	user-select: none;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-normal);
+  cursor: pointer;
+  user-select: none;
+}
+
+.note-architect-templater-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.note-architect-badge {
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--text-on-accent);
+  background-color: var(--interactive-accent);
+  padding: 2px 6px;
+  border-radius: 4px;
+  user-select: none;
+}
+
+.note-architect-code-preview {
+  font-family: var(--font-monospace);
+  color: var(--text-accent);
+  background: var(--background-secondary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  flex: 1;
+  overflow-x: auto;
 }
 
 /* 操作按钮容器样式 */
 .note-architect-form-actions {
-	display: flex;
-	align-items: center;
-	justify-content: flex-end;
-	gap: 8px;
-	padding-top: 12px;
-	border-top: 1px solid var(--background-modifier-border);
-	margin-top: 8px;
-}
-
-/* 响应式布局 - 表单优化 */
-@media (max-width: 768px) {
-	.note-architect-form-title {
-		font-size: 18px;
-		margin-bottom: 8px;
-	}
-
-	.note-architect-form-description {
-		padding: 8px 12px;
-	}
-
-	.note-architect-form-container {
-		gap: 8px;
-		max-height: 60vh;
-	}
-
-	.note-architect-form-actions {
-		flex-direction: row;
-		gap: 8px;
-	}
-}
-
-@media (max-width: 480px) {
-	.note-architect-form-title {
-		font-size: 17px;
-	}
-
-	.note-architect-form-description {
-		padding: 4px 8px;
-	}
-
-	.note-architect-form-description-text {
-		font-size: 12px;
-	}
-
-	.note-architect-form-input,
-	.note-architect-form-select {
-		padding: 10px 12px;
-		font-size: 16px; /* 防止 iOS 缩放 */
-	}
-
-	.note-architect-form-select {
-		padding: 10px 32px 10px 12px;
-	}
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--note-architect-gap-sm);
+  padding-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: 8px;
 }
 
 /* ========================================
@@ -1717,193 +1793,404 @@ Note Architect - Obsidian Native Style
 
 /* 预设管理容器 */
 .note-architect-preset-actions {
-	margin: 16px 0;
-	display: flex;
-	justify-content: flex-start;
+  margin: 16px 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--note-architect-gap-sm);
+  flex-shrink: 0;
 }
 
 /* 预设列表容器 */
 .note-architect-presets-list {
-	margin-top: 16px;
-	padding: 0;
+  margin-top: 16px;
+  padding: 0;
 }
 
 /* 空状态样式 */
 .note-architect-empty-presets {
-	padding: 32px 24px;
-	text-align: center;
-	background-color: var(--background-secondary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 6px;
-	margin: 16px 0;
+  padding: 24px 16px;
+  margin: 8px 0;
+  text-align: center;
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
-.note-architect-empty-presets p {
-	margin: 0;
-	color: var(--text-muted);
-	font-size: 14px;
-	line-height: 1.6;
-}
-
-/* 预设项样式 - Obsidian 原生风格 */
 .note-architect-preset-item {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 16px;
-	padding: 16px;
-	margin-bottom: 12px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 6px;
-	background-color: var(--background-primary);
-	position: relative;
-}
-
-.note-architect-preset-item:last-child {
-	margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--note-architect-gap-md);
+  padding: 10px 8px;
+  margin: 0;
+  border: none;
+  border-bottom: 1px solid var(--background-modifier-border);
+  border-radius: 0;
+  background: transparent;
+  transition: background-color 120ms ease;
 }
 
 .note-architect-preset-item:hover {
-	background-color: var(--background-secondary);
-	border-color: var(--background-modifier-border-hover);
+  background-color: var(--background-modifier-hover);
 }
 
-/* 主内容区域 */
 .note-architect-preset-content {
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	min-width: 0;
-}
-
-/* 预设名称容器 */
-.note-architect-preset-name {
-	display: flex;
-	align-items: center;
-	width: 100%;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .note-architect-preset-name-input {
-	width: 100%;
-	padding: 8px 12px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 4px;
-	background-color: var(--background-primary);
-	color: var(--text-normal);
-	font-size: 14px;
-	font-weight: 500;
-	outline: none;
-	box-sizing: border-box;
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  padding: 6px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-normal);
+  line-height: 1.4;
 }
 
-.note-architect-preset-name-input:hover {
-	border-color: var(--background-modifier-border-hover);
-}
-
-.note-architect-preset-name-input:focus {
-	border-color: var(--interactive-accent);
-	box-shadow: 0 0 0 2px var(--interactive-accent-hover);
-}
-
-/* 预设信息样式 */
-.note-architect-preset-info {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	font-size: 12px;
-	color: var(--text-muted);
-	line-height: 1.5;
-}
-
-.note-architect-preset-field-count {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	color: var(--text-accent);
-	font-weight: 500;
-}
-
-.note-architect-preset-separator {
-	color: var(--text-faint);
-}
-
-.note-architect-preset-id {
-	font-family: var(--font-monospace);
-	font-size: 11px;
-	color: var(--text-faint);
-}
-
-/* 操作按钮容器 */
 .note-architect-preset-actions {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--note-architect-gap-sm);
+  flex-shrink: 0;
 }
 
-/* 响应式布局 - 预设项优化 */
+.note-architect-preset-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.note-architect-preset-id {
+  font-family: var(--font-monospace);
+}
+
+/* ========================================
+   模板列表优化样式 - 单行布局
+   ======================================== */
+
+/* 列表项布局改为横向 Flex */
+.note-architect-template-content-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* 两端对齐 */
+  width: 100%;
+  gap: 12px;
+}
+
+/* 模板名称样式 */
+.note-architect-template-name {
+  font-size: var(--font-ui-medium);
+  color: var(--text-normal);
+  font-weight: 500;
+  flex-shrink: 0; /* 防止名称被压缩 */
+}
+
+/* 内联路径样式：右对齐、颜色变淡 */
+.note-architect-template-path-inline {
+  font-size: var(--font-ui-smaller); /* 更小的字体 */
+  color: var(--text-faint); /* 更淡的颜色 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* 超长省略 */
+  text-align: right;
+  flex-grow: 1; /* 占据剩余空间 */
+  max-width: 50%; /* 限制最大宽度 */
+  min-width: 0; /* 关键：允许 flex item 缩小到内容以下，确保 text-overflow 生效 */
+}
+
+/* 调整列表项本身的内边距，使其更紧凑 */
+.note-architect-template-item {
+  padding: 8px 12px; /* 稍微减小垂直内边距 */
+  min-height: auto; /* 移除最小高度限制 */
+}
+
+/* 选中状态的徽标微调 */
+.note-architect-template-badge {
+  font-size: 10px;
+  padding: 1px 4px;
+  margin-left: 8px;
+}
+
+/* ========================================
+   响应式布局 - 媒体查询（统一管理）
+   ======================================== */
+
+/* 平板设备 (768px 及以下) */
 @media (max-width: 768px) {
-	.note-architect-preset-actions {
-		margin: 12px 0;
-	}
+  /* 模板选择模态窗口优化 */
+  .note-architect-main-container {
+    flex-direction: column;
+    gap: 10px;
+    height: 550px;
+    max-height: 550px;
+  }
 
-	.note-architect-presets-list {
-		margin-top: 12px;
-	}
+  .note-architect-left-container {
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-right: 0;
+    padding-bottom: 12px;
+    flex: 1;
+    height: auto;
+  }
 
-	.note-architect-empty-presets {
-		padding: 24px 16px;
-		margin: 8px 0;
-	}
+  .note-architect-divider {
+    display: none;
+  }
 
-	.note-architect-preset-item {
-		flex-direction: column;
-		align-items: stretch;
-		padding: 14px;
-		gap: 12px;
-	}
+  .note-architect-preview-container {
+    padding-left: 0;
+    padding-top: 0;
+    height: 220px;
+    flex: none;
+  }
 
-	.note-architect-preset-content {
-		width: 100%;
-	}
+  .note-architect-preview-content {
+    height: calc(100% - 30px);
+  }
 
-	.note-architect-preset-name-input {
-		padding: 10px 12px;
-		font-size: 15px;
-	}
+  .note-architect-modal-container {
+    flex: 1;
+    height: 0;
+  }
 
-	.note-architect-preset-actions {
-		width: 100%;
-		flex-direction: row;
-		gap: 8px;
-	}
+  .note-architect-preview-placeholder {
+    margin-top: 60px;
+  }
 
-	.note-architect-preset-info {
-		font-size: 12px;
-	}
+  /* 移动端状态容器优化 */
+  .note-architect-status-container {
+    padding: 30px 16px;
+    max-width: none;
+    margin: 0 8px;
+  }
+
+  .note-architect-status-header {
+    flex-direction: column;
+    gap: var(--note-architect-gap-sm);
+    text-align: center;
+  }
+
+  .note-architect-status-icon {
+    font-size: 28px;
+    padding: 8px;
+  }
+
+  .note-architect-status-title {
+    font-size: 16px;
+    margin: 8px 0;
+  }
+
+  .note-architect-status-message {
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 16px;
+    margin: 16px 0;
+  }
+
+  .note-architect-status-actions {
+    gap: var(--note-architect-gap-md);
+    width: 100%;
+  }
+
+  /* 移动端搜索框优化 */
+  .note-architect-search-wrapper,
+  .note-architect-search-container {
+    padding: 12px 16px;
+    margin: 0 0 12px 0;
+  }
+
+  .note-architect-search-input {
+    padding: 12px 32px 12px 12px;
+    font-size: 16px; /* 防止iOS缩放 */
+    border-radius: var(--radius-s);
+  }
+
+  /* 移动端模板列表项优化 */
+  .note-architect-template-item {
+    padding: 14px;
+    margin-bottom: 0;
+    border-radius: var(--radius-m);
+    min-height: 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .note-architect-template-name {
+    font-size: 15px;
+    line-height: 1.4;
+  }
+
+  /* 表单样式优化 */
+  .note-architect-form-title {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+
+  .note-architect-form-description {
+    padding: 8px 12px;
+  }
+
+  .note-architect-form-container {
+    gap: var(--note-architect-gap-sm);
+    max-height: 60vh;
+  }
+
+  .note-architect-form-actions {
+    flex-direction: row;
+    gap: var(--note-architect-gap-sm);
+  }
 }
 
+/* 小平板/大手机 (700px 及以下) */
+@media (max-width: 700px) {
+  /* 状态块布局调整 */
+  .note-architect-status-block__item {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  /* 字段配置布局调整 */
+  .note-architect-field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .note-architect-field-config-actions {
+    justify-content: center;
+  }
+}
+
+/* 手机设备 (480px 及以下) */
 @media (max-width: 480px) {
-	.note-architect-preset-actions {
-		margin: 8px 0;
-	}
+  /* 主容器小屏幕优化 */
+  .note-architect-main-container {
+    margin: 8px 0;
+    height: 500px;
+  }
 
-	.note-architect-presets-list {
-		margin-top: 8px;
-	}
+  .note-architect-search-wrapper,
+  .note-architect-search-container {
+    padding: 12px 8px;
+    margin: 0 0 8px 0;
+  }
 
-	.note-architect-empty-presets {
-		padding: 20px 12px;
-		margin: 6px 0;
-	}
+  .note-architect-left-container {
+    padding: 0 8px;
+  }
 
-	.note-architect-preset-item {
-		padding: 12px;
-		gap: 10px;
-	}
+  .note-architect-preview-container {
+    padding: 0 8px;
+    height: 200px;
+  }
 
-	.note-architect-preset-name-input {
-		padding: 10px 12px;
-	}
+  .note-architect-modal-container {
+    padding: 8px 0;
+  }
+
+  /* 小屏幕状态容器优化 */
+  .note-architect-status-container {
+    padding: 24px 12px;
+    margin: 0 4px;
+  }
+
+  .note-architect-status-icon {
+    font-size: 24px;
+    padding: 6px;
+  }
+
+  .note-architect-status-title {
+    font-size: 15px;
+    margin: 6px 0;
+  }
+
+  .note-architect-status-message {
+    font-size: 12px;
+    padding: 12px;
+    margin: 12px 0;
+  }
+
+  .note-architect-status-actions {
+    gap: 10px;
+  }
+
+  /* 小屏幕搜索框优化 */
+  .note-architect-search-input {
+    padding: 14px 32px 14px 12px;
+  }
+
+  /* 小屏幕模板列表项优化 */
+  .note-architect-template-item {
+    padding: 18px 16px;
+    margin-bottom: 0;
+    min-height: 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .note-architect-template-name {
+    font-size: 16px;
+    line-height: 1.3;
+  }
+
+  /* 小屏幕预览容器优化 */
+  .note-architect-preview-title {
+    font-size: 15px;
+    margin-bottom: 10px;
+  }
+
+  /* 表单小屏幕优化 */
+  .note-architect-form-title {
+    font-size: 17px;
+  }
+
+  .note-architect-form-description {
+    padding: 4px 8px;
+  }
+
+  .note-architect-form-description-text {
+    font-size: 12px;
+  }
+
+  .note-architect-form-input,
+  .note-architect-form-select {
+    padding: 10px 12px;
+    font-size: 16px; /* 防止 iOS 缩放 */
+  }
+
+  .note-architect-form-select {
+    padding: 10px 32px 10px 12px;
+  }
+
+  /* 预设管理小屏幕优化 */
+  .note-architect-preset-actions {
+    margin: 8px 0;
+  }
+
+  .note-architect-presets-list {
+    margin-top: 8px;
+  }
+
+  .note-architect-empty-presets {
+    padding: 20px 12px;
+    margin: 6px 0;
+  }
+
+  .note-architect-preset-item {
+    padding: 12px 8px;
+    gap: 10px;
+  }
+
+  .note-architect-preset-name-input {
+    padding: 8px 0;
+  }
 }

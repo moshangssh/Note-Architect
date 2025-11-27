@@ -1,123 +1,143 @@
 interface TemplateSearchViewOptions {
-	onInput: (value: string) => void;
-	onKeyDown: (event: KeyboardEvent) => void;
-	onClear: () => void;
-	placeholder?: string;
-	initialQuery?: string;
-	onContentSearchChange?: (enabled: boolean) => void;
-	initialContentSearchEnabled?: boolean;
+  onInput: (value: string) => void;
+  onKeyDown: (event: KeyboardEvent) => void;
+  onClear: () => void;
+  placeholder?: string;
+  initialQuery?: string;
+  onContentSearchChange?: (enabled: boolean) => void;
+  initialContentSearchEnabled?: boolean;
 }
 
 /**
  * 负责渲染模板搜索输入框及其交互逻辑
  */
 export class TemplateSearchView {
-	private readonly options: TemplateSearchViewOptions;
-	private readonly parentEl: HTMLElement;
-	private containerEl: HTMLElement | null = null;
-	private inputEl: HTMLInputElement | null = null;
-	private clearButtonEl: HTMLButtonElement | null = null;
-	private optionsContainerEl: HTMLElement | null = null;
-	private contentSearchCheckboxEl: HTMLInputElement | null = null;
+  private readonly options: TemplateSearchViewOptions;
+  private readonly parentEl: HTMLElement;
+  private containerEl: HTMLElement | null = null;
+  private inputEl: HTMLInputElement | null = null;
+  private clearButtonEl: HTMLButtonElement | null = null;
+  private optionsContainerEl: HTMLElement | null = null;
+  private contentSearchCheckboxEl: HTMLInputElement | null = null;
 
-	constructor(parentEl: HTMLElement, options: TemplateSearchViewOptions) {
-		this.parentEl = parentEl;
-		this.options = options;
-	}
+  constructor(parentEl: HTMLElement, options: TemplateSearchViewOptions) {
+    this.parentEl = parentEl;
+    this.options = options;
+  }
+  mount() {
+    this.containerEl = this.parentEl.createDiv({
+      cls: "note-architect-search-container search-input-container",
+    });
 
-	mount() {
-		this.containerEl = this.parentEl.createDiv('note-architect-search-container');
-		this.inputEl = this.containerEl.createEl('input', {
-			type: 'text',
-			placeholder: this.options.placeholder ?? '搜索模板...',
-			cls: 'note-architect-search-input'
-		});
+    this.inputEl = this.containerEl.createEl("input", {
+      type: "text",
+      placeholder: this.options.placeholder ?? "搜索模板...",
+      cls: "note-architect-input-base note-architect-search-input",
+    });
 
-		this.inputEl.addEventListener('input', this.handleInput);
-		this.inputEl.addEventListener('keydown', this.handleKeyDown);
+    this.inputEl.addEventListener("input", this.handleInput);
+    this.inputEl.addEventListener("keydown", this.handleKeyDown);
 
-		this.clearButtonEl = this.containerEl.createEl('button', {
-			type: 'button',
-			text: '×',
-			cls: 'note-architect-search-clear'
-		});
-		this.clearButtonEl.title = '清空搜索';
-		this.clearButtonEl.setAttribute('aria-label', '清空搜索');
-		this.clearButtonEl.addEventListener('click', this.handleClear);
+    this.clearButtonEl = this.containerEl.createEl("button", {
+      type: "button",
+      text: "×",
+      cls: "note-architect-search-clear",
+    });
+    this.clearButtonEl.title = "清空搜索";
+    this.clearButtonEl.setAttribute("aria-label", "清空搜索");
+    this.clearButtonEl.addEventListener("click", this.handleClear);
 
-		if (this.options.onContentSearchChange) {
-			this.optionsContainerEl = this.parentEl.createDiv('note-architect-search-options');
-			const labelEl = this.optionsContainerEl.createEl('label', { cls: 'note-architect-search-option' });
-			labelEl.setAttribute('title', '启用后将搜索模板正文，可能导致检索速度变慢');
-			this.contentSearchCheckboxEl = labelEl.createEl('input', {
-				type: 'checkbox',
-				cls: 'note-architect-search-option-input'
-			});
-			this.contentSearchCheckboxEl.checked = Boolean(this.options.initialContentSearchEnabled);
-			this.contentSearchCheckboxEl.addEventListener('change', this.handleContentSearchToggle);
-			labelEl.createSpan({ text: '搜索模板内容', cls: 'note-architect-search-option-label' });
-		}
+    if (this.options.onContentSearchChange) {
+      this.optionsContainerEl = this.parentEl.createDiv(
+        "note-architect-search-options"
+      );
+      const labelEl = this.optionsContainerEl.createEl("label", {
+        cls: "note-architect-search-option",
+      });
+      labelEl.setAttribute(
+        "title",
+        "启用后将搜索模板正文，可能导致检索速度变慢"
+      );
+      this.contentSearchCheckboxEl = labelEl.createEl("input", {
+        type: "checkbox",
+        cls: "note-architect-search-option-input",
+      });
+      this.contentSearchCheckboxEl.checked = Boolean(
+        this.options.initialContentSearchEnabled
+      );
+      this.contentSearchCheckboxEl.addEventListener(
+        "change",
+        this.handleContentSearchToggle
+      );
+      labelEl.createSpan({
+        text: "搜索模板内容",
+        cls: "note-architect-search-option-label",
+      });
+    }
 
-		if (this.options.initialQuery) {
-			this.setQuery(this.options.initialQuery, false);
-		} else {
-			this.updateClearButtonVisibility('');
-		}
-	}
+    if (this.options.initialQuery) {
+      this.setQuery(this.options.initialQuery, false);
+    } else {
+      this.updateClearButtonVisibility("");
+    }
+  }
 
-	unmount() {
-		if (this.inputEl) {
-			this.inputEl.removeEventListener('input', this.handleInput);
-			this.inputEl.removeEventListener('keydown', this.handleKeyDown);
-		}
-		this.clearButtonEl?.removeEventListener('click', this.handleClear);
-		this.contentSearchCheckboxEl?.removeEventListener('change', this.handleContentSearchToggle);
+  unmount() {
+    if (this.inputEl) {
+      this.inputEl.removeEventListener("input", this.handleInput);
+      this.inputEl.removeEventListener("keydown", this.handleKeyDown);
+    }
+    this.clearButtonEl?.removeEventListener("click", this.handleClear);
+    this.contentSearchCheckboxEl?.removeEventListener(
+      "change",
+      this.handleContentSearchToggle
+    );
 
-		this.containerEl?.empty();
-		this.optionsContainerEl?.remove();
-		this.containerEl = null;
-		this.inputEl = null;
-		this.clearButtonEl = null;
-		this.optionsContainerEl = null;
-		this.contentSearchCheckboxEl = null;
-	}
+    this.containerEl?.empty();
+    this.optionsContainerEl?.remove();
+    this.containerEl = null;
+    this.inputEl = null;
+    this.clearButtonEl = null;
+    this.optionsContainerEl = null;
+    this.contentSearchCheckboxEl = null;
+  }
 
-	focus() {
-		this.inputEl?.focus();
-	}
+  focus() {
+    this.inputEl?.focus();
+  }
 
-	setQuery(value: string, trigger = true) {
-		if (!this.inputEl) return;
-		this.inputEl.value = value;
-		this.updateClearButtonVisibility(value);
-		if (trigger) {
-			this.options.onInput(value);
-		}
-	}
+  setQuery(value: string, trigger = true) {
+    if (!this.inputEl) return;
+    this.inputEl.value = value;
+    this.updateClearButtonVisibility(value);
+    if (trigger) {
+      this.options.onInput(value);
+    }
+  }
 
-	private handleInput = (event: Event) => {
-		const target = event.target as HTMLInputElement;
-		this.updateClearButtonVisibility(target.value);
-		this.options.onInput(target.value);
-	};
+  private handleInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    this.updateClearButtonVisibility(target.value);
+    this.options.onInput(target.value);
+  };
 
-	private handleKeyDown = (event: KeyboardEvent) => {
-		this.options.onKeyDown(event);
-	};
+  private handleKeyDown = (event: KeyboardEvent) => {
+    this.options.onKeyDown(event);
+  };
 
-	private handleClear = () => {
-		this.setQuery('', false);
-		this.options.onClear();
-		this.focus();
-	};
+  private handleClear = () => {
+    this.setQuery("", false);
+    this.options.onClear();
+    this.focus();
+  };
 
-	private handleContentSearchToggle = () => {
-		if (!this.contentSearchCheckboxEl) return;
-		this.options.onContentSearchChange?.(this.contentSearchCheckboxEl.checked);
-	};
+  private handleContentSearchToggle = () => {
+    if (!this.contentSearchCheckboxEl) return;
+    this.options.onContentSearchChange?.(this.contentSearchCheckboxEl.checked);
+  };
 
-	private updateClearButtonVisibility(value: string) {
-		if (!this.clearButtonEl) return;
-		this.clearButtonEl.style.display = value.trim() ? 'block' : 'none';
-	}
+  private updateClearButtonVisibility(value: string) {
+    if (!this.clearButtonEl) return;
+    this.clearButtonEl.style.display = value.trim() ? "block" : "none";
+  }
 }

@@ -19,9 +19,14 @@ export class TemplatePreviewPanel {
 		this.contentEl.empty();
 
 		if (!template) {
-			this.contentEl.createEl('p', {
-				text: '悬停或点击模板名称以预览内容',
-				cls: 'note-architect-preview-placeholder'
+			const emptyStateEl = this.contentEl.createDiv('note-architect-preview-empty');
+			emptyStateEl.createEl('div', {
+				text: '未选择模板',
+				cls: 'note-architect-preview-empty-title'
+			});
+			emptyStateEl.createEl('div', {
+				text: '提示：悬停或按 ↑↓ 浏览模板，回车应用',
+				cls: 'note-architect-preview-empty-hint'
 			});
 			return;
 		}

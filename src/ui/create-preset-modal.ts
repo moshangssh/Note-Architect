@@ -48,7 +48,7 @@ export class CreatePresetModal extends Modal {
 		this.nameInput = nameContainer.createEl('input', {
 			type: 'text',
 			placeholder: '例如: 项目模板配置',
-			cls: 'note-architect-form-input'
+			cls: 'note-architect-input-base note-architect-form-input'
 		});
 
 		// 验证消息容器

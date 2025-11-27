@@ -75,18 +75,12 @@ export class FieldItem {
 	/**
 	 * 靶向更新标题及副标题，避免整行重渲染
 	 */
-	updateSummary(field: FrontmatterField): void {
+		updateSummary(field: FrontmatterField): void {
 		this.config.field = field;
-		if (this.titleEl) {
-			this.titleEl.setText(field.label?.trim() || `字段 ${this.config.index + 1}`);
-		}
-		if (this.subtitleEl) {
-			if (field.key?.trim()) {
-				this.subtitleEl.setText(`Frontmatter 键名：${field.key}`);
-			} else {
-				this.subtitleEl.setText('尚未设置 Frontmatter 键名');
-			}
-		}
+		const labelText = field.label?.trim() || `字段 ${this.config.index + 1}`;
+		const keyText = field.key?.trim() || '未设置键名';
+		this.titleEl?.setText(labelText);
+		this.subtitleEl?.setText(keyText);
 	}
 
 	/**
@@ -161,11 +155,8 @@ export class FieldItem {
 		this.titleEl = title;
 
 		const subtitle = content.createDiv('note-architect-master-list__item-subtitle');
-		if (this.config.field.key?.trim()) {
-			subtitle.setText(`Frontmatter 键名：${this.config.field.key}`);
-		} else {
-			subtitle.setText('尚未设置 Frontmatter 键名');
-		}
+		const keyText = this.config.field.key?.trim() || '未设置键名';
+		subtitle.setText(keyText);
 		this.subtitleEl = subtitle;
 	}
 

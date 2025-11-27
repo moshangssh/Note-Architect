@@ -1,6 +1,7 @@
 import { FrontmatterField, FrontmatterFieldType, DEFAULT_SETTINGS } from '../../types/settings';
 import { normalizeStringArray } from '../../utils/data-transformer';
 import { DomEventManager } from '@ui/dom-event-manager';
+import { setIcon } from 'obsidian';
 import type { FieldValidationErrors, FieldValidationErrorKey } from './validation';
 
 /**
@@ -168,7 +169,7 @@ export class FieldConfigForm {
 			type: 'text',
 			value: this.config.field.key,
 			placeholder: '例如: status, category, priority',
-			cls: 'note-architect-field-input'
+			cls: 'note-architect-input-base note-architect-field-input'
 		});
 		this.keyInputEl = input;
 
@@ -195,7 +196,7 @@ export class FieldConfigForm {
 			type: 'text',
 			value: this.config.field.label,
 			placeholder: '例如: 状态, 分类, 优先级',
-			cls: 'note-architect-field-input'
+			cls: 'note-architect-input-base note-architect-field-input'
 		});
 		this.labelInputEl = input;
 
@@ -219,7 +220,7 @@ export class FieldConfigForm {
 		});
 
 		const select = row.createEl('select', {
-			cls: 'note-architect-field-input note-architect-field-select'
+			cls: 'note-architect-input-base note-architect-field-input note-architect-field-select'
 		});
 		this.typeSelectEl = select;
 
@@ -274,7 +275,7 @@ export class FieldConfigForm {
 			type: 'text',
 			value: normalizedDefault,
 			placeholder: '默认值或 Templater 宏（可选）',
-			cls: 'note-architect-field-input'
+			cls: 'note-architect-input-base note-architect-field-input'
 		});
 		this.defaultInputEl = input;
 
@@ -316,9 +317,10 @@ export class FieldConfigForm {
 		this.renderOptionsList(optionsListContainer);
 		this.optionsListContainer = optionsListContainer;
 
-		const addOptionBtn = row.createEl('button', {
+		const actions = row.createDiv('note-architect-field-options__actions');
+		const addOptionBtn = actions.createEl('button', {
 			text: '添加选项',
-			cls: 'mod-small note-architect-field-options__btn'
+			cls: 'note-architect-field-options__add'
 		});
 		this.formEvents.add(addOptionBtn, 'click', () => this.addOption(optionsListContainer));
 
@@ -339,7 +341,7 @@ export class FieldConfigForm {
 		const textarea = row.createEl('textarea', {
 			value: this.config.field.description || '',
 			placeholder: '字段描述（可选）',
-			cls: 'note-architect-field-input note-architect-field-textarea'
+			cls: 'note-architect-input-base note-architect-field-input note-architect-field-textarea'
 		});
 		this.descriptionInputEl = textarea;
 		// 设置 textarea 的 rows 属性
@@ -543,7 +545,7 @@ export class FieldConfigForm {
 				type: 'text',
 				value: option,
 				placeholder: '选项值',
-				cls: 'note-architect-field-input'
+				cls: 'note-architect-input-base note-architect-field-input'
 			});
 			this.optionsEvents.add(optionInput, 'input', () => {
 				if (this.config.field.options) {
@@ -554,9 +556,10 @@ export class FieldConfigForm {
 			});
 
 			const removeOptionBtn = optionItem.createEl('button', {
-				text: '删除',
-				cls: 'mod-small mod-warning note-architect-field-options__remove'
+				cls: 'clickable-icon note-architect-option-remove',
+				attr: { 'aria-label': '删除选项' }
 			});
+			setIcon(removeOptionBtn, 'trash-2');
 			this.optionsEvents.add(removeOptionBtn, 'click', () => this.removeOption(optionIndex));
 		});
 	}

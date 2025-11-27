@@ -24,14 +24,24 @@ export function parseFrontmatter(content: string): ParsedFrontmatter {
 
 	const [, frontmatterText] = match;
 	const body = content.slice(match[0].length);
-	const frontmatter = (parseYaml(frontmatterText) ?? {}) as Record<string, unknown>;
+	try {
+		const frontmatter = (parseYaml(frontmatterText) ?? {}) as Record<string, unknown>;
 
-	return {
-		frontmatter,
-		body,
-		hasFrontmatter: true,
-		newline,
-	};
+		return {
+			frontmatter,
+			body,
+			hasFrontmatter: true,
+			newline,
+		};
+	} catch (error) {
+		console.warn('Note Architect: Frontmatter 解析失败，已返回空对象以继续处理', error);
+		return {
+			frontmatter: {},
+			body,
+			hasFrontmatter: true,
+			newline,
+		};
+	}
 }
 
 export function composeContent(frontmatter: Record<string, unknown>, parsed: ParsedFrontmatter): string {

@@ -2,6 +2,7 @@ import type { FrontmatterField } from '@types';
 import type { SettingsManager } from '@settings';
 import { FieldConfigForm } from './field-config-form';
 import { DomEventManager } from '@ui/dom-event-manager';
+import { setIcon } from 'obsidian';
 import type { FieldValidationErrors } from './validation';
 
 /**
@@ -187,9 +188,10 @@ export class DetailPanelView {
 			cls: 'note-architect-detail-panel__back-btn'
 		});
 		this.deleteButtonEl = this.actionsEl.createEl('button', {
-			text: '删除字段',
-			cls: 'mod-warning note-architect-detail-panel__delete-btn'
-		});
+			cls: 'clickable-icon note-architect-detail-panel__delete-btn',
+			attr: { 'aria-label': '删除字段' }
+		}) as HTMLButtonElement;
+		setIcon(this.deleteButtonEl, 'trash-2');
 
 		this.eventManager.add(this.backButtonEl, 'click', () => {
 			this.config.onNavigateBack?.();

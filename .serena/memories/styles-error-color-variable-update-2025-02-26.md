@@ -1,0 +1,1 @@
+在 styles.css 中，字段行错误状态标签颜色已从 var(--color-red, #cc3d3d) 替换为 var(--text-error, #cc3d3d)，以优先使用 Obsidian 主题定义的错误文本色并保留原回退红色，提升不同主题（如 Dracula/Nord）兼容度。

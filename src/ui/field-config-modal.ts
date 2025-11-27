@@ -60,8 +60,6 @@ export class FieldConfigModal extends Modal {
 
 		contentEl.empty();
 
-		// 创建标题
-		contentEl.createEl('h2', { text: `配置预设字段: ${this.preset.name}` });
 
 		// 创建主从布局容器
 		const layoutContainer = contentEl.createDiv('note-architect-field-config-layout');

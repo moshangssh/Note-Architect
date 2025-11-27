@@ -35,25 +35,35 @@ function handleTextLikeField(rawValue: unknown): unknown {
 export function convertFormDataToFrontmatter(
 	preset: FrontmatterPreset,
 	formData: Record<string, unknown>,
+	resolvedDefaults?: Map<string, string | string[]>,
 ): Record<string, unknown> {
 	const frontmatter: Record<string, unknown> = {};
 
 	preset.fields.forEach((field) => {
-		const value = formData[field.key];
+		const userValue = formData[field.key];
+		const hasUserValue = Object.prototype.hasOwnProperty.call(formData, field.key);
+		const rawValue = hasUserValue && userValue !== undefined && userValue !== null
+			? userValue
+			: resolvedDefaults?.get(field.key);
 
-		if (value === undefined || value === null || value === '') {
+		if (rawValue === undefined) {
+			frontmatter[field.key] = field.type === 'multi-select' ? [] : '';
+			return;
+		}
+
+		if (rawValue === null || rawValue === '') {
 			frontmatter[field.key] = field.type === 'multi-select' ? [] : '';
 			return;
 		}
 
 		switch (field.type) {
 			case 'date': {
-				frontmatter[field.key] = handleDateField(field, value);
+				frontmatter[field.key] = handleDateField(field, rawValue);
 				break;
 			}
 
 			case 'multi-select': {
-				const selections = handleMultiSelectField(field, value);
+				const selections = handleMultiSelectField(field, rawValue);
 				frontmatter[field.key] = selections;
 				break;
 			}
@@ -61,7 +71,7 @@ export function convertFormDataToFrontmatter(
 			case 'text':
 			case 'select':
 			default: {
-				frontmatter[field.key] = handleTextLikeField(value);
+				frontmatter[field.key] = handleTextLikeField(rawValue);
 				break;
 			}
 		}

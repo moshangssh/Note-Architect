@@ -1,0 +1,1 @@
+已删除 styles.css 中所有 ::-webkit-scrollbar 自定义块（原位置约 604-628 行），让 master list、fields list、form container 滚动条完全继承 Obsidian/主题默认样式，以避免覆盖并保持明暗模式一致性。无其它样式调整。

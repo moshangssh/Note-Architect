@@ -1,3 +1,5 @@
+import { setIcon } from 'obsidian';
+
 import { notifyWarning } from '@utils/notify';
 import type { FrontmatterPreset } from '@types';
 
@@ -52,15 +54,12 @@ export function renderPresetItemUI(
 	const { containerEl, preset, callbacks } = options;
 	const itemEl = containerEl.createDiv('note-architect-preset-item');
 
-	// 主内容区域
+	// 左侧：名称与信息
 	const contentContainer = itemEl.createDiv('note-architect-preset-content');
-
-	// 名称输入框
-	const nameContainer = contentContainer.createDiv('note-architect-preset-name');
-	const nameInputEl = nameContainer.createEl('input', {
+	const nameInputEl = contentContainer.createEl('input', {
 		type: 'text',
 		value: preset.name,
-		cls: 'note-architect-preset-name-input',
+		cls: 'note-architect-input-base note-architect-preset-name-input',
 	}) as HTMLInputElement;
 
 	// 信息区域
@@ -82,13 +81,16 @@ export function renderPresetItemUI(
 	// 操作按钮
 	const actionsContainer = itemEl.createDiv('note-architect-preset-actions');
 	const configButtonEl = actionsContainer.createEl('button', {
-		text: '配置字段',
-		cls: 'note-architect-preset-btn-config',
+		cls: 'clickable-icon note-architect-preset-btn-config',
+		attr: { 'aria-label': '配置字段' },
 	}) as HTMLButtonElement;
+	setIcon(configButtonEl, 'settings');
+
 	const deleteButtonEl = actionsContainer.createEl('button', {
-		text: '删除',
-		cls: 'note-architect-preset-btn-delete',
+		cls: 'clickable-icon note-architect-preset-btn-delete',
+		attr: { 'aria-label': '删除' },
 	}) as HTMLButtonElement;
+	setIcon(deleteButtonEl, 'trash-2');
 
 	const context: RenderPresetItemContext = {
 		listContainerEl: containerEl,
