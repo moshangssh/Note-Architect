@@ -65,6 +65,13 @@
   ],
   "src/actions/insert-template.ts": [
     {
+      "id": "notebook-1765093121242_s06f879yg",
+      "filePath": "src/actions/insert-template.ts",
+      "note": "✅ [2025-12-07 修复] executeTemplateInsertion 执行顺序已修复：必须先 updateNoteFrontmatter（文件顶部），再 editor.replaceSelection（光标位置）。旧版本顺序错误导致 frontmatter 被放置在正文之后。",
+      "createdAt": "2025-12-07T15:38:41.242",
+      "updatedAt": "2025-12-07T15:38:41.242"
+    },
+    {
       "id": "notebook-1764955598581_86jpr8wi7",
       "filePath": "src/actions/insert-template.ts",
       "note": "⚠️ executeTemplateInsertion 函数必须先执行 updateNoteFrontmatter（更新 Frontmatter），再执行 editor.replaceSelection（插入正文）。顺序颠倒会导致光标在文件开头时，正文插入使 Frontmatter 行号下移，导致位置错乱和内容覆盖。",

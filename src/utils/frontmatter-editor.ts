@@ -72,12 +72,15 @@ export function updateNoteFrontmatter(
     });
 
     if (position && position.start && position.end) {
+      // 文件已有 frontmatter，替换整个 frontmatter 块
       const startPos = { line: position.start.line, ch: 0 };
       const endPos = { line: position.end.line + 1, ch: 0 };
       editor.replaceRange(`---\n${newYamlString}---\n\n`, startPos, endPos);
     } else {
+      // 文件没有 frontmatter，在文件开头插入（明确指定结束位置）
       const startPos = { line: 0, ch: 0 };
-      editor.replaceRange(`---\n${newYamlString}---\n\n`, startPos);
+      const endPos = { line: 0, ch: 0 }; // 插入模式：from = to
+      editor.replaceRange(`---\n${newYamlString}---\n\n`, startPos, endPos);
     }
   } catch (error) {
     console.error("Note Architect: 更新 frontmatter 失败", error);
