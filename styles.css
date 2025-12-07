@@ -23,15 +23,13 @@ Note Architect - Obsidian Native Style
 
 /* 定义通用选择器列表，一次性应用基础样式 */
 /* 使用 :is() 简化选择器（保持特异性），如需降低特异性便于覆盖可使用 :where() */
-:is(
-    .note-architect-input-base,
-    .note-architect-search-input,
-    .note-architect-field-input,
-    .note-architect-form-input,
-    .note-architect-preset-name-input,
-    .note-architect-field-select,
-    .note-architect-form-select
-  ) {
+:is(.note-architect-input-base,
+  .note-architect-search-input,
+  .note-architect-field-input,
+  .note-architect-form-input,
+  .note-architect-preset-name-input,
+  .note-architect-field-select,
+  .note-architect-form-select) {
   width: 100%;
   border: 1px solid var(--note-architect-input-border);
   border-radius: var(--note-architect-input-radius);
@@ -47,29 +45,25 @@ Note Architect - Obsidian Native Style
 }
 
 /* 统一 Hover 状态 */
-:is(
-    .note-architect-input-base,
-    .note-architect-search-input,
-    .note-architect-field-input,
-    .note-architect-form-input,
-    .note-architect-preset-name-input,
-    .note-architect-field-select,
-    .note-architect-form-select
-  ):hover {
+:is(.note-architect-input-base,
+  .note-architect-search-input,
+  .note-architect-field-input,
+  .note-architect-form-input,
+  .note-architect-preset-name-input,
+  .note-architect-field-select,
+  .note-architect-form-select):hover {
   border-color: var(--note-architect-input-border-hover);
   background-color: var(--note-architect-input-bg-hover);
 }
 
 /* 统一 Focus 状态 */
-:is(
-    .note-architect-input-base,
-    .note-architect-search-input,
-    .note-architect-field-input,
-    .note-architect-form-input,
-    .note-architect-preset-name-input,
-    .note-architect-field-select,
-    .note-architect-form-select
-  ):focus {
+:is(.note-architect-input-base,
+  .note-architect-search-input,
+  .note-architect-field-input,
+  .note-architect-form-input,
+  .note-architect-preset-name-input,
+  .note-architect-field-select,
+  .note-architect-form-select):focus {
   border-color: var(--interactive-accent);
   border-width: var(--note-architect-input-focus-width);
   background-color: var(--note-architect-input-bg-focus);
@@ -471,8 +465,7 @@ input.note-architect-form-input.note-architect-form-input--error,
 }
 
 /* 搜索无结果时的特殊样式 */
-.note-architect-status-container.note-architect-no-results
-  .note-architect-status-icon {
+.note-architect-status-container.note-architect-no-results .note-architect-status-icon {
   color: var(--text-accent);
   opacity: 0.9;
 }
@@ -510,12 +503,10 @@ input.note-architect-form-input.note-architect-form-input--error,
 
 /* 搜索框加载状态 */
 .note-architect-search-input.note-architect-search-loading {
-  background-image: linear-gradient(
-    100deg,
-    transparent 40%,
-    var(--interactive-accent) 50%,
-    transparent 60%
-  );
+  background-image: linear-gradient(100deg,
+      transparent 40%,
+      var(--interactive-accent) 50%,
+      transparent 60%);
   background-size: 40px 40px;
 }
 
@@ -523,6 +514,29 @@ input.note-architect-form-input.note-architect-form-input--error,
   padding-top: 12px;
   padding-bottom: 12px;
 }
+
+/* "当前"徽标样式 */
+.note-architect-badge-current {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  font-size: var(--font-ui-smaller);
+  font-weight: 500;
+  color: var(--text-on-accent);
+  background-color: var(--interactive-accent);
+  border-radius: var(--radius-s);
+  vertical-align: middle;
+}
+
+/* 空状态提示 */
+.note-architect-empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 24px 16px;
+  margin: 0;
+}
+
 
 .note-architect-separator,
 .note-architect-preset-separator {
@@ -555,6 +569,7 @@ input.note-architect-form-input.note-architect-form-input--error,
   width: 100%;
   border-bottom: none;
 }
+
 /* 模板图标样式 */
 .note-architect-template-icon {
   flex-shrink: 0;
@@ -632,8 +647,7 @@ input.note-architect-form-input.note-architect-form-input--error,
   color: var(--text-normal);
 }
 
-.note-architect-template-item.note-architect-template-item-active
-  .note-architect-template-name {
+.note-architect-template-item.note-architect-template-item-active .note-architect-template-name {
   font-weight: 500;
 }
 
@@ -642,8 +656,7 @@ input.note-architect-form-input.note-architect-form-input--error,
   background-color: var(--nav-item-background-active);
 }
 
-.note-architect-template-item.note-architect-template-item-selected
-  .note-architect-template-name {
+.note-architect-template-item.note-architect-template-item-selected .note-architect-template-name {
   color: var(--text-normal);
   font-weight: 500;
 }
@@ -834,7 +847,7 @@ input.note-architect-form-input.note-architect-form-input--error,
 }
 
 /* 移除列表项之间的间距，改用 border-bottom 分割 */
-.note-architect-master-list__item + .note-architect-master-list__item {
+.note-architect-master-list__item+.note-architect-master-list__item {
   margin-top: 0;
 }
 
@@ -896,7 +909,7 @@ input.note-architect-form-input.note-architect-form-input--error,
 
 /* 选中状态:使用原生激活色 */
 .note-architect-master-list__item.is-selected {
-  background-color: var(--nav-item-background-active);
+  background-color: var(--background-modifier-hover);
   border-color: var(--background-modifier-border);
   box-shadow: none;
 }
@@ -995,13 +1008,11 @@ input.note-architect-form-input.note-architect-form-input--error,
   text-overflow: ellipsis;
 }
 
-.note-architect-master-list__item.is-selected
-  .note-architect-master-list__item-title {
+.note-architect-master-list__item.is-selected .note-architect-master-list__item-title {
   color: var(--text-normal);
 }
 
-.note-architect-master-list__item.is-selected
-  .note-architect-master-list__item-subtitle {
+.note-architect-master-list__item.is-selected .note-architect-master-list__item-subtitle {
   color: var(--text-muted);
 }
 
@@ -1165,13 +1176,11 @@ input.note-architect-form-input.note-architect-form-input--error,
     z-index: 1;
   }
 
-  .note-architect-field-config-layout.detail-view-active
-    .note-architect-field-config-layout__master {
+  .note-architect-field-config-layout.detail-view-active .note-architect-field-config-layout__master {
     transform: translateX(-100%);
   }
 
-  .note-architect-field-config-layout.detail-view-active
-    .note-architect-field-config-layout__detail {
+  .note-architect-field-config-layout.detail-view-active .note-architect-field-config-layout__detail {
     transform: translateX(0);
   }
 
@@ -1212,6 +1221,7 @@ input.note-architect-form-input.note-architect-form-input--error,
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .note-architect-master-list__item,
   .note-architect-detail-panel__form-container,
   .note-architect-detail-panel__empty {
@@ -1866,6 +1876,7 @@ input.note-architect-form-input.note-architect-form-input--error,
   font-size: 12px;
   color: var(--text-muted);
 }
+
 .note-architect-preset-id {
   font-family: var(--font-monospace);
 }
@@ -1878,7 +1889,8 @@ input.note-architect-form-input.note-architect-form-input--error,
 .note-architect-template-content-row {
   display: flex;
   align-items: center;
-  justify-content: space-between; /* 两端对齐 */
+  justify-content: space-between;
+  /* 两端对齐 */
   width: 100%;
   gap: 12px;
 }
@@ -1888,26 +1900,35 @@ input.note-architect-form-input.note-architect-form-input--error,
   font-size: var(--font-ui-medium);
   color: var(--text-normal);
   font-weight: 500;
-  flex-shrink: 0; /* 防止名称被压缩 */
+  flex-shrink: 0;
+  /* 防止名称被压缩 */
 }
 
 /* 内联路径样式：右对齐、颜色变淡 */
 .note-architect-template-path-inline {
-  font-size: var(--font-ui-smaller); /* 更小的字体 */
-  color: var(--text-faint); /* 更淡的颜色 */
+  font-size: var(--font-ui-smaller);
+  /* 更小的字体 */
+  color: var(--text-faint);
+  /* 更淡的颜色 */
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis; /* 超长省略 */
+  text-overflow: ellipsis;
+  /* 超长省略 */
   text-align: right;
-  flex-grow: 1; /* 占据剩余空间 */
-  max-width: 50%; /* 限制最大宽度 */
-  min-width: 0; /* 关键：允许 flex item 缩小到内容以下，确保 text-overflow 生效 */
+  flex-grow: 1;
+  /* 占据剩余空间 */
+  max-width: 50%;
+  /* 限制最大宽度 */
+  min-width: 0;
+  /* 关键：允许 flex item 缩小到内容以下，确保 text-overflow 生效 */
 }
 
 /* 调整列表项本身的内边距，使其更紧凑 */
 .note-architect-template-item {
-  padding: 8px 12px; /* 稍微减小垂直内边距 */
-  min-height: auto; /* 移除最小高度限制 */
+  padding: 8px 12px;
+  /* 稍微减小垂直内边距 */
+  min-height: auto;
+  /* 移除最小高度限制 */
 }
 
 /* 选中状态的徽标微调 */
@@ -1918,11 +1939,48 @@ input.note-architect-form-input.note-architect-form-input--error,
 }
 
 /* ========================================
+   FrontmatterManagerModal 单预设模式样式
+   ======================================== */
+
+/* 预设信息行：紧凑的单行布局 */
+.note-architect-preset-info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 12px 0;
+  padding: 8px 12px;
+  background-color: var(--background-secondary);
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+}
+
+/* 内联标签样式 */
+.note-architect-form-label-inline {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* 预设名称徽章 */
+.note-architect-preset-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  color: var(--text-on-accent);
+  background-color: var(--interactive-accent);
+  border-radius: var(--radius-s);
+}
+
+/* ========================================
    响应式布局 - 媒体查询（统一管理）
    ======================================== */
 
 /* 平板设备 (768px 及以下) */
 @media (max-width: 768px) {
+
   /* 模板选择模态窗口优化 */
   .note-architect-main-container {
     flex-direction: column;
@@ -2007,7 +2065,8 @@ input.note-architect-form-input.note-architect-form-input--error,
 
   .note-architect-search-input {
     padding: 12px 32px 12px 12px;
-    font-size: 16px; /* 防止iOS缩放 */
+    font-size: 16px;
+    /* 防止iOS缩放 */
     border-radius: var(--radius-s);
   }
 
@@ -2052,6 +2111,7 @@ input.note-architect-form-input.note-architect-form-input--error,
 
 /* 小平板/大手机 (700px 及以下) */
 @media (max-width: 700px) {
+
   /* 状态块布局调整 */
   .note-architect-status-block__item {
     grid-template-columns: 1fr;
@@ -2070,6 +2130,7 @@ input.note-architect-form-input.note-architect-form-input--error,
 
 /* 手机设备 (480px 及以下) */
 @media (max-width: 480px) {
+
   /* 主容器小屏幕优化 */
   .note-architect-main-container {
     margin: 8px 0;
@@ -2164,7 +2225,8 @@ input.note-architect-form-input.note-architect-form-input--error,
   .note-architect-form-input,
   .note-architect-form-select {
     padding: 10px 12px;
-    font-size: 16px; /* 防止 iOS 缩放 */
+    font-size: 16px;
+    /* 防止 iOS 缩放 */
   }
 
   .note-architect-form-select {

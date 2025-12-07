@@ -1,16 +1,24 @@
-import { MarkdownView, TFile } from 'obsidian';
-import type { Plugin } from 'obsidian';
-import type NoteArchitect from '@core/plugin';
-import type { PresetManager } from '@presets';
-import type { SettingsManager } from '@settings';
-import type { FrontmatterPreset, Template } from '@types';
-import { FrontmatterManagerModal, NoteArchitectSettingTab, TemplatePresetBindingModal, TemplateSelectorModal } from '@ui';
-import { handleError } from '@core/error';
-import { parseFrontmatter, updateFrontmatter } from '@utils/frontmatter-editor';
-import { notifyInfo, notifySuccess, notifyWarning } from '@utils/notify';
-import { isInsideTemplateFolder } from '@utils/path';
-import { PRESET_CONFIG_KEY } from '@core/constants';
-import { resolvePresetConfigIds, stripPresetConfigKeys } from '@utils/note-architect-config';
+import { MarkdownView, TFile } from "obsidian";
+import type { Plugin } from "obsidian";
+import type NoteArchitect from "@core/plugin";
+import type { PresetManager } from "@presets";
+import type { SettingsManager } from "@settings";
+import type { FrontmatterPreset, Template } from "@types";
+import {
+  FrontmatterManagerModal,
+  NoteArchitectSettingTab,
+  UniversalPresetSelectorModal,
+  TemplateSelectorModal,
+} from "@ui";
+import { handleError } from "@core/error";
+import { parseFrontmatter, updateFrontmatter } from "@utils/frontmatter-editor";
+import { notifyInfo, notifySuccess, notifyWarning } from "@utils/notify";
+import { isInsideTemplateFolder } from "@utils/path";
+import { PRESET_CONFIG_KEY } from "@core/constants";
+import {
+  resolvePresetConfigIds,
+  stripPresetConfigKeys,
+} from "@utils/note-architect-config";
 
 export class UiRegistrar {
   private readonly noteArchitect: NoteArchitect;
@@ -18,7 +26,7 @@ export class UiRegistrar {
   constructor(
     private readonly plugin: Plugin,
     private readonly settingsManager: SettingsManager,
-    private readonly presetManager: PresetManager,
+    private readonly presetManager: PresetManager
   ) {
     this.noteArchitect = plugin as NoteArchitect;
   }
@@ -30,29 +38,36 @@ export class UiRegistrar {
   }
 
   private registerRibbon(): void {
-    const ribbonIconEl = this.plugin.addRibbonIcon('layout-template', '插入可视化模板', () => {
-      new TemplateSelectorModal(this.plugin.app, this.noteArchitect).open();
-    });
-    ribbonIconEl.addClass('note-architect-ribbon-class');
+    const ribbonIconEl = this.plugin.addRibbonIcon(
+      "layout-template",
+      "插入可视化模板",
+      () => {
+        new TemplateSelectorModal(this.plugin.app, this.noteArchitect).open();
+      }
+    );
+    ribbonIconEl.addClass("note-architect-ribbon-class");
   }
 
   private registerCommands(): void {
     this.plugin.addCommand({
-      id: 'insert-template-placeholder',
-      name: '插入模板占位符',
-      icon: 'code',
+      id: "insert-template-placeholder",
+      name: "插入模板占位符",
+      icon: "code",
       editorCallback: (editor) => {
         const selection = editor.getSelection();
-        editor.replaceSelection(selection ? `{{${selection}}}` : '{{template-placeholder}}');
+        editor.replaceSelection(
+          selection ? `{{${selection}}}` : "{{template-placeholder}}"
+        );
       },
     });
 
     this.plugin.addCommand({
-      id: 'open-template-settings',
-      name: '打开模板设置',
-      icon: 'settings',
+      id: "open-template-settings",
+      name: "打开模板设置",
+      icon: "settings",
       checkCallback: (checking) => {
-        const markdownView = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
+        const markdownView =
+          this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
         if (!markdownView) return false;
         if (!checking) {
           const app = this.plugin.app as any;
@@ -64,53 +79,60 @@ export class UiRegistrar {
     });
 
     this.plugin.addCommand({
-      id: 'insert-visual-template',
-      name: '插入可视化模板',
-      icon: 'layout-template',
+      id: "insert-visual-template",
+      name: "插入可视化模板",
+      icon: "layout-template",
       callback: () => {
         new TemplateSelectorModal(this.plugin.app, this.noteArchitect).open();
       },
     });
 
     this.plugin.addCommand({
-      id: 'bind-template-to-preset',
-      name: '将当前模板绑定到预设',
-      icon: 'link',
+      id: "bind-template-to-preset",
+      name: "将当前模板绑定到预设",
+      icon: "link",
       checkCallback: (checking) => this.handleBindCommand(checking),
     });
 
     this.plugin.addCommand({
-      id: 'update-note-frontmatter',
-      name: '更新当前笔记的 Frontmatter',
-      icon: 'file-edit',
-      checkCallback: (checking) => this.handleUpdateFrontmatterCommand(checking),
+      id: "update-note-frontmatter",
+      name: "更新当前笔记的 Frontmatter",
+      icon: "file-edit",
+      checkCallback: (checking) =>
+        this.handleUpdateFrontmatterCommand(checking),
     });
   }
 
   private registerSettingTab(): void {
     this.plugin.addSettingTab(
-      new NoteArchitectSettingTab(this.plugin.app, this.noteArchitect, this.settingsManager, this.presetManager),
+      new NoteArchitectSettingTab(
+        this.plugin.app,
+        this.noteArchitect,
+        this.settingsManager,
+        this.presetManager
+      )
     );
   }
 
   private handleBindCommand(checking: boolean): boolean {
-    const markdownView = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
+    const markdownView =
+      this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
     const file = markdownView?.file;
-    if (!file || file.extension !== 'md') {
+    if (!file || file.extension !== "md") {
       return false;
     }
 
     const folderPath = this.noteArchitect.settings.templateFolderPath?.trim();
     if (!folderPath) {
       if (!checking) {
-        notifyWarning('请先在 Note Architect 设置中配置模板文件夹路径。');
+        notifyWarning("请先在 Note Architect 设置中配置模板文件夹路径。");
       }
       return false;
     }
 
     if (!isInsideTemplateFolder(file.path, folderPath)) {
       if (!checking) {
-        notifyWarning('当前文件不在模板文件夹内，请先将模板移动到指定目录。');
+        notifyWarning("当前文件不在模板文件夹内，请先将模板移动到指定目录。");
       }
       return false;
     }
@@ -124,7 +146,8 @@ export class UiRegistrar {
   }
 
   private handleUpdateFrontmatterCommand(checking: boolean): boolean {
-    const markdownView = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
+    const markdownView =
+      this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
     if (!markdownView) {
       return false;
     }
@@ -132,7 +155,7 @@ export class UiRegistrar {
     const presets = this.presetManager.getPresets();
     if (!presets || presets.length === 0) {
       if (!checking) {
-        notifyWarning('请先创建至少一个 frontmatter 预设。');
+        notifyWarning("请先创建至少一个 frontmatter 预设。");
       }
       return false;
     }
@@ -141,14 +164,31 @@ export class UiRegistrar {
       return true;
     }
 
-    FrontmatterManagerModal.forFrontmatterUpdate(this.plugin.app, this.noteArchitect, { presets }).open();
+    const lastUsedId = this.noteArchitect.settings.lastUsedPresetForUpdate;
+
+    // 第一步：打开预设选择器
+    new UniversalPresetSelectorModal(this.plugin.app, {
+      title: "选择预设",
+      subtitle: "选择一个预设以更新当前笔记的 Frontmatter",
+      presets: presets,
+      currentPresetId: lastUsedId,
+      // 第二步：用户选择后打开填表界面
+      onSelect: (selectedPreset) => {
+        FrontmatterManagerModal.forFrontmatterUpdate(
+          this.plugin.app,
+          this.noteArchitect,
+          { presets: [selectedPreset] }
+        ).open();
+      },
+    }).open();
+
     return true;
   }
 
   private async openTemplatePresetBindingModal(file: TFile): Promise<void> {
     const presets = this.presetManager.getPresets();
     if (!presets || presets.length === 0) {
-      notifyInfo('当前没有可用预设，请先在设置中创建至少一个预设。');
+      notifyInfo("当前没有可用预设，请先在设置中创建至少一个预设。");
       return;
     }
 
@@ -163,23 +203,32 @@ export class UiRegistrar {
       const parsed = parseFrontmatter(content);
       const { ids: existingIds } = resolvePresetConfigIds(parsed.frontmatter);
 
-      new TemplatePresetBindingModal(this.plugin.app, {
-        template,
+      new UniversalPresetSelectorModal(this.plugin.app, {
+        title: "将模板绑定到预设",
+        subtitle: `模板路径：${template.path}`,
         presets,
-        existingIds,
-        onBind: async (preset, boundTemplate) =>
-          await this.bindPresetToTemplate(file, preset, boundTemplate),
-        onClear: async () => await this.clearPresetBinding(file),
+        currentPresetId: existingIds,
+        allowClear: true,
+        clearOptionName: "不绑定预设",
+        clearOptionDesc: "不使用任何预设配置",
+        autoClose: false, // 支持多次绑定
+        onBind: async (preset) =>
+          await this.bindPresetToTemplate(file, preset, template),
+        onClearAsync: async () => await this.clearPresetBinding(file),
       }).open();
     } catch (error) {
       handleError(error, {
-        context: 'UiRegistrar.openTemplatePresetBindingModal',
-        userMessage: '读取模板内容失败，无法绑定预设。',
+        context: "UiRegistrar.openTemplatePresetBindingModal",
+        userMessage: "读取模板内容失败，无法绑定预设。",
       });
     }
   }
 
-  private async bindPresetToTemplate(file: TFile, preset: FrontmatterPreset, template?: Template): Promise<void> {
+  private async bindPresetToTemplate(
+    file: TFile,
+    preset: FrontmatterPreset,
+    template?: Template
+  ): Promise<void> {
     try {
       const vault = this.plugin.app.vault;
       const content = template?.content ?? (await vault.read(file));
@@ -200,7 +249,7 @@ export class UiRegistrar {
             [PRESET_CONFIG_KEY]: [...currentIds, preset.id],
           };
         },
-        parsed,
+        parsed
       );
 
       if (!result.changed) {
@@ -216,8 +265,8 @@ export class UiRegistrar {
       void this.noteArchitect.templateManager.reloadTemplates();
     } catch (error) {
       handleError(error, {
-        context: 'UiRegistrar.bindPresetToTemplate',
-        userMessage: '绑定预设失败，请稍后重试。',
+        context: "UiRegistrar.bindPresetToTemplate",
+        userMessage: "绑定预设失败，请稍后重试。",
       });
       throw error;
     }
@@ -232,10 +281,10 @@ export class UiRegistrar {
       const result = updateFrontmatter(
         content,
         (frontmatter) => stripPresetConfigKeys(frontmatter),
-        parsed,
+        parsed
       );
       if (!result.changed) {
-        notifyInfo('当前模板未绑定任何预设。');
+        notifyInfo("当前模板未绑定任何预设。");
         return;
       }
 
@@ -244,12 +293,10 @@ export class UiRegistrar {
       void this.noteArchitect.templateManager.reloadTemplates();
     } catch (error) {
       handleError(error, {
-        context: 'UiRegistrar.clearPresetBinding',
-        userMessage: '解除预设绑定失败，请稍后重试。',
+        context: "UiRegistrar.clearPresetBinding",
+        userMessage: "解除预设绑定失败，请稍后重试。",
       });
       throw error;
     }
   }
-
 }
-

@@ -53,5 +53,32 @@
       "createdAt": "2025-11-27T01:27:58.651",
       "updatedAt": "2025-11-27T01:27:58.651"
     }
+  ],
+  "src/ui/dynamic-preset-selector-modal.ts": [
+    {
+      "id": "notebook-1764777329762_wscln6vue",
+      "filePath": "src/ui/dynamic-preset-selector-modal.ts",
+      "note": "✅ 已重构为通用选择器：GeneralPresetSelectorModal 解除了与 Template 的耦合，通过 PresetSelectorModalOptions 配置标题、描述、按钮显示等。DynamicPresetSelectorModal 作为向后兼容包装器保留。新场景应使用 GeneralPresetSelectorModal。",
+      "createdAt": "2025-12-03T23:55:29.762",
+      "updatedAt": "2025-12-03T23:55:29.762"
+    }
+  ],
+  "src/actions/insert-template.ts": [
+    {
+      "id": "notebook-1764955598581_86jpr8wi7",
+      "filePath": "src/actions/insert-template.ts",
+      "note": "⚠️ executeTemplateInsertion 函数必须先执行 updateNoteFrontmatter（更新 Frontmatter），再执行 editor.replaceSelection（插入正文）。顺序颠倒会导致光标在文件开头时，正文插入使 Frontmatter 行号下移，导致位置错乱和内容覆盖。",
+      "createdAt": "2025-12-06T01:26:38.581",
+      "updatedAt": "2025-12-06T01:26:38.581"
+    }
+  ],
+  "src/ui/universal-preset-selector-modal.ts": [
+    {
+      "id": "notebook-1765092303098_kwbdeb20h",
+      "filePath": "src/ui/universal-preset-selector-modal.ts",
+      "note": "⚠️ 统一的预设选择模态窗口实现，支持三种使用场景：1) 模板绑定（asyncSelectMode + keepOpenAfterSelect），2) 动态选择（customButtons），3) 通用选择。异步模式下必须使用 runWithBusy 确保加载状态正确。已替代 TemplatePresetBindingModal 和 GeneralPresetSelectorModal。",
+      "createdAt": "2025-12-07T15:25:03.098",
+      "updatedAt": "2025-12-07T15:25:03.098"
+    }
   ]
 }

@@ -8,7 +8,7 @@ import {
   parseTemplateContent,
 } from "@engine/TemplateEngine";
 import { FrontmatterManagerModal } from "./frontmatter-manager-modal";
-import { DynamicPresetSelectorModal } from "./dynamic-preset-selector-modal";
+import { UniversalPresetSelectorModal } from "./universal-preset-selector-modal";
 import { debounce } from "@utils/timing";
 import {
   notifyError,
@@ -522,25 +522,36 @@ export class TemplateSelectorModal extends Modal {
   }
 
   private showDynamicPresetSelector(template: Template) {
-    new DynamicPresetSelectorModal(
-      this.app,
-      this.plugin,
-      template,
-      (selectedPreset) => {
-        if (selectedPreset) {
-          // 用户选择了预设，打开 FrontmatterManagerModal
-          FrontmatterManagerModal.forTemplateInsertion(
-            this.app,
-            this.plugin,
-            template,
-            [selectedPreset]
-          ).open();
-        } else {
-          // 用户选择直接插入，不使用预设
-          this.insertTemplate(template);
-        }
-      }
-    ).open();
+    new UniversalPresetSelectorModal(this.app, {
+      title: "选择预设",
+      subtitle: `模板 "${template.name}" 未配置预设，请从现有预设中选择一个：`,
+      presets: this.plugin.presetManager.getPresets(),
+      onSelect: (selectedPreset) => {
+        // 用户选择了预设，打开 FrontmatterManagerModal
+        FrontmatterManagerModal.forTemplateInsertion(
+          this.app,
+          this.plugin,
+          template,
+          [selectedPreset]
+        ).open();
+      },
+      customButtons: [
+        {
+          text: "取消",
+          variant: "default",
+          onClick: () => {
+            // 不做任何操作，只关闭窗口
+          },
+        },
+        {
+          text: "直接插入模板",
+          variant: "cta",
+          onClick: () => {
+            this.insertTemplate(template);
+          },
+        },
+      ],
+    }).open();
     this.close();
   }
 

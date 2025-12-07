@@ -1,140 +1,145 @@
-这是一份基于“**显式绑定优先，全局配置兜底**”原则的完整修改规划。这份规划旨在安全地移除过度设计，同时实现更确定的用户交互逻辑。
+好的，开发思路非常清晰。核心策略是**“组件通用化”**和**“流程分步化”**。
+
+我们将不再让 `TemplatePresetBindingModal` 仅仅服务于绑定功能，而是将其 UI 逻辑抽象出来，或者创建一个通用的**“预设选择器”**，让“绑定预设”和“更新 Frontmatter”这两个功能都调用同一个 UI 组件。
+
+以下是为您规划的开发思路和关键代码结构：
+
+### 核心思路
+
+1.  **UI 抽象 (The View)**：创建一个通用的 `PresetSelectorModal`（或者重构现有的 `TemplatePresetBindingModal` 使其更通用）。该 Modal 只负责展示列表、搜索、并返回用户点击的预设。它不应该包含具体的“绑定”或“更新”业务逻辑。
+2.  **业务解耦 (The Controller)**：
+    *   **绑定场景**：用户选择 -> 调用 `updateFrontmatter` 写入文件配置。
+    *   **更新场景**（您的新需求）：用户选择 -> 关闭选择器 -> 打开 `FrontmatterManagerModal`（填表界面）。
 
 ---
 
-# Note Architect 重构规划书
+### 步骤 1：创建/重构通用的预设选择器 Modal
 
-## 🎯 核心目标
-1.  **移除** `FieldConfig` 中的虚拟滚动（Virtualization），回归简单可靠的 DOM 渲染。
-2.  **移除** 不确定的“动态预设匹配算法”（Heuristic Matching）。
-3.  **新增** “未绑定预设时的默认行为”配置（询问 / 使用默认 / 无动作）。
+我们需要一个配置性很强的 Modal。你可以新建一个 `UniversalPresetSelectorModal`，或者改造现有的 Modal。
 
----
+**关键特性配置：**
+*   **标题/副标题**：可定制（"绑定预设" vs "选择预设以更新"）。
+*   **当前状态**：传入 `currentPresetId`，用于在列表中标记 "（当前）" 徽标。
+*   **操作回调**：`onSelect(preset)`。
+*   **清除/跳过选项**：可选配置（绑定场景需要"解绑"，更新场景可能不需要）。
 
-## 📅 阶段一：配置层改造 (Configuration Layer)
-
-**目标**：在修改核心逻辑前，先建立数据基础。
-
-### 1. 修改 `src/types/settings.ts`
-定义新的配置项类型。
+**关键代码结构 (`src/ui/universal-preset-selector-modal.ts`)：**
 
 ```typescript
-// 新增类型定义
-export type NoPresetBehavior = 'ask' | 'use-default' | 'do-nothing';
-
-export interface NoteArchitectSettings {
-  // ... 现有字段
-  
-  // [变更] 移除 enableDynamicPresetSelection
-  // [新增] 未绑定预设时的行为策略
-  noPresetBehavior: NoPresetBehavior;
-  // [新增] 默认预设 ID (当 noPresetBehavior 为 'use-default' 时使用)
-  defaultPresetId: string;
+interface PresetSelectorOptions {
+    title: string;
+    subtitle?: string;
+    presets: FrontmatterPreset[];
+    currentPresetId?: string; // 用于高亮当前选中的（如果有）
+    
+    // 核心回调：用户选中某一项时触发
+    onSelect: (preset: FrontmatterPreset) => void;
+    
+    // 可选：是否显示“不使用预设/解绑”的顶部选项
+    allowClear?: boolean; 
+    onClear?: () => void;
 }
 
-export const DEFAULT_SETTINGS: NoteArchitectSettings = {
-  // ... 其他默认值
-  noPresetBehavior: 'ask', // 保持向后兼容，默认为询问
-  defaultPresetId: '',
-};
+export class UniversalPresetSelectorModal extends Modal {
+    // ...省略基础属性初始化...
+
+    onOpen() {
+        // 1. 渲染通用的头部 (复用你喜欢的 UI 样式)
+        this.renderHeader(this.options.title, this.options.subtitle);
+        
+        // 2. 渲染搜索框 (复用现有的搜索逻辑)
+        this.renderSearchInput();
+        
+        // 3. 渲染列表容器
+        this.renderList();
+    }
+
+    private renderList() {
+        // ...遍历 this.filteredPresets...
+        
+        for (const preset of this.filteredPresets) {
+            const isCurrent = preset.id === this.options.currentPresetId;
+            
+            // 复用之前的 Setting UI 构建逻辑
+            const setting = new Setting(this.listContainer)
+                .setName(preset.name)
+                .setDesc(this.buildPresetDesc(preset)); // 复用之前的描述构建
+
+            if (isCurrent) {
+                // 渲染 "（当前）" 徽标
+                // 按钮显示 "当前" 并禁用
+            } else {
+                // 渲染 "选择" 按钮
+                setting.addButton(btn => btn
+                    .setButtonText("选择")
+                    .setCta()
+                    .onClick(() => {
+                        this.close(); // 先关闭自己
+                        this.options.onSelect(preset); // 触发回调，进入下一步
+                    })
+                );
+            }
+        }
+    }
+}
 ```
 
-### 2. 修改 `src/settings/SettingsManager.ts`
-确保新字段能被正确加载和保存（通常只需确保 `DEFAULT_SETTINGS` 更新即可，无需大量逻辑修改，但需清理旧的 `enableDynamicPresetSelection` 迁移逻辑）。
+### 步骤 2：修改业务流程入口 (`UiRegistrar.ts`)
 
-### 3. 修改 `src/ui/note-architect-setting-tab.ts`
-移除旧开关，添加新的下拉菜单和默认预设选择器。
+在 `handleUpdateFrontmatterCommand` 中，我们将流程改为两步走。
 
-*   **移除**: `renderDynamicPresetSelectionSetting` 函数。
-*   **新增**: `renderNoPresetBehaviorSetting` 函数。
-    *   下拉菜单选择：`ask`, `use-default`, `do-nothing`。
-    *   条件渲染：仅当选择 `use-default` 时，显示“选择默认预设”的下拉框。
+**关键代码逻辑 (`src/core/UiRegistrar.ts`)：**
 
----
+```typescript
+private handleUpdateFrontmatterCommand(checking: boolean): boolean {
+    // ... 省略前置检查代码 ...
 
-## 🛠️ 阶段二：UI 简化 (UI De-bloating)
+    if (checking) return true;
 
-**目标**：移除过度设计的虚拟列表，简化预设选择弹窗。
+    const presets = this.presetManager.getPresets();
+    const lastUsedId = this.noteArchitect.settings.lastUsedPresetForUpdate;
 
-### 4. 重构 `src/ui/field-config/master-list-view.ts`
-移除虚拟滚动逻辑，实现简单的列表渲染。
-
-*   **删除属性**: `virtualItemsContainer`, `virtualTopSpacerEl`, `virtualizationState`, `lastKnownScrollTop`, `estimatedItemHeight` 等。
-*   **删除方法**: `renderVirtualizedList`, `updateVirtualizedWindow`, `handleVirtualScroll`。
-*   **重写 `renderListBody`**:
-    ```typescript
-    private renderListBody(listEl: HTMLDivElement): void {
-        listEl.removeClass('note-architect-master-list__items--virtualized');
+    // --- 第一步：打开选择器 ---
+    new UniversalPresetSelectorModal(this.plugin.app, {
+        title: "选择预设",
+        subtitle: "选择一个预设以更新当前笔记的 Frontmatter",
+        presets: presets,
         
-        if (this.currentFields.length === 0) {
-            this.renderEmptyState(listEl);
-            return;
+        // 传入上次使用的 ID，方便用户看到上次选了啥
+        currentPresetId: lastUsedId, 
+
+        // --- 第二步：用户选择后的回调 ---
+        onSelect: (selectedPreset) => {
+            // 打开填表界面 (FrontmatterManagerModal)
+            // 注意：这里 presets 数组只传用户选中的这就行，或者传全部但默认选中它
+            FrontmatterManagerModal.forFrontmatterUpdate(
+                this.plugin.app, 
+                this.noteArchitect, 
+                { 
+                    presets: [selectedPreset], // 重点：只传选中的这个，简化 Modal 逻辑
+                    // 或者如果你想保留在 Modal 里切换预设的能力，可以传全部，并指定 activePreset
+                }
+            ).open();
         }
+    }).open();
 
-        // 直接循环渲染所有字段，不再判断数量
-        this.currentFields.forEach((field, index) => {
-            const fieldItem = this.createFieldItem(field, index, listEl);
-            this.fieldItems.set(index, fieldItem);
-        });
-    }
-    ```
+    return true;
+}
+```
 
-### 5. 重构 `src/ui/dynamic-preset-selector-modal.ts`
-将其改造为 `SimplePresetSelectorModal`（建议重命名文件以反映其实质）。
+### 步骤 3：微调填表界面 (`FrontmatterManagerModal`)
 
-*   **移除**: 构造函数中的 `PresetMatcher.matchPresets` 调用。
-*   **移除**: 所有关于 `matchResults`, `score`, `reasons` 的逻辑。
-*   **移除**: “推荐”徽标逻辑。
-*   **保留**: 简单的预设列表展示、搜索过滤功能。
+由于我们在第一步已经明确了用户想要哪个预设，`FrontmatterManagerModal` 可以简化。
 
----
+**优化思路：**
 
-## 🧠 阶段三：核心逻辑迁移 (Core Logic Migration)
+*   **构造函数**：如果传入的 `presets` 数组只有一个（来自 Step 2 的回调），那么 UI 上原本那个 "选择预设" 的下拉框 (`presetSwitcherEl`) 就可以自动隐藏，或者显示为只读文本（"当前预设：XXX"）。
+*   **逻辑保持**：不需要大改核心逻辑，它依然负责解析默认值、渲染表单、合并/覆盖 Frontmatter。
 
-**目标**：连接配置与交互，实现新的决策流。
+### 总结
 
-### 6. 修改 `src/ui/template-selector-modal.ts`
-重写 `handleTemplateClick` 方法，实现优先级判断。
+1.  **UI 复用**：通过 `UniversalPresetSelectorModal` 把 "漂亮的列表 UI" 剥离出来。
+2.  **绑定流程**：`UiRegistrar` -> `UniversalPresetSelectorModal` (onSelect 执行写入文件配置)。
+3.  **更新流程**：`UiRegistrar` -> `UniversalPresetSelectorModal` (onSelect 打开填表 Modal)。
 
-*   **逻辑流**:
-    1.  解析模板 Frontmatter。
-    2.  `if (configIds.length > 0)`:
-        *   **是**: 按照**显式绑定**逻辑处理（打开表单）。
-        *   **否**: 读取 `settings.noPresetBehavior` 并执行 switch-case 逻辑：
-            *   `do-nothing`: 直接调用 `insertTemplate`。
-            *   `use-default`: 获取 `defaultPresetId`，找到预设并打开表单。
-            *   `ask`: 打开第 5 步重构后的 `SimplePresetSelectorModal`。
-
----
-
-## 🗑️ 阶段四：清理死代码 (Cleanup)
-
-**目标**：移除不再需要的“智能匹配”引擎。
-
-### 7. 删除文件
-*   🗑️ `src/utils/preset-matcher.ts` (整个文件)
-
-### 8. 清理引用
-*   检查并移除 `src/utils/note-architect-config.ts` 或其他文件中对 `PresetMatcher` 的引用（如有）。
-
----
-
-## ✅ 验证清单 (Verification Checklist)
-
-在提交代码前，请按此顺序进行测试：
-
-1.  **场景 A：已绑定预设的模板**
-    *   [ ] 点击模板 -> 应该**直接打开**表单，**忽略**全局设置。
-2.  **场景 B：未绑定预设 + 设置为“总是询问”**
-    *   [ ] 点击模板 -> 应该弹出简化的预设选择列表。
-3.  **场景 C：未绑定预设 + 设置为“使用默认预设”**
-    *   [ ] 若已配置默认预设 -> 直接打开表单。
-    *   [ ] 若默认预设ID无效 -> 降级弹出选择列表或警告。
-4.  **场景 D：未绑定预设 + 设置为“直接插入”**
-    *   [ ] 点击模板 -> 直接插入内容，不弹出任何窗口。
-5.  **场景 E：字段配置列表**
-    *   [ ] 打开一个包含 20+ 字段的预设 -> 列表应正常显示，滚动流畅，且无虚拟滚动的空白占位 Bug。
-
----
-
-**执行建议**：建议按照 **阶段二 -> 阶段一 -> 阶段三 -> 阶段四** 的顺序执行。先简化 UI 组件，再准备配置数据，最后修改核心逻辑连接两者，最安全。
+这样既满足了 UI 统一，又完美实现了您期望的交互流程。

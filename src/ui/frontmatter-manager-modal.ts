@@ -223,7 +223,8 @@ export class FrontmatterManagerModal extends Modal {
   private getDescriptionText(): string {
     if (this.isUpdateMode) {
       if (this.sourcePresets.length === 1) {
-        return `请基于预设 "${this.sourcePresets[0].name}" 填写您想应用到当前笔记的 Frontmatter 字段。这些新值将根据您选择的应用模式（合并或覆盖）写入笔记。`;
+        // 单预设模式：简化描述，预设名称将在控件区域显示
+        return "填写以下字段以更新 Frontmatter：";
       }
       return "请选择要应用的预设，并填写以下字段：";
     }
@@ -264,9 +265,17 @@ export class FrontmatterManagerModal extends Modal {
         this.handlePresetSelectionChange(selectEl.value);
       this.presetSwitcherEl = selectEl;
     } else {
-      container.createEl("p", {
-        cls: "note-architect-form-description-text",
-        text: `将基于预设 "${this.mergedPreset.name}" 应用 Frontmatter 字段到当前笔记。`,
+      // 单预设模式：显示紧凑的预设名称徽章
+      const presetInfoRow = container.createDiv({
+        cls: "note-architect-preset-info-row",
+      });
+      presetInfoRow.createEl("span", {
+        text: "当前预设：",
+        cls: "note-architect-form-label-inline",
+      });
+      presetInfoRow.createEl("span", {
+        text: this.mergedPreset.name,
+        cls: "note-architect-preset-badge",
       });
     }
 
