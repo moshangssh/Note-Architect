@@ -87,5 +87,93 @@
       "createdAt": "2025-12-07T15:25:03.098",
       "updatedAt": "2025-12-07T15:25:03.098"
     }
+  ],
+  "src/engine/ObsidianTemplaterAdapter.ts": [
+    {
+      "id": "notebook-1765094547467_4ewc94d9t",
+      "filePath": "src/engine/ObsidianTemplaterAdapter.ts",
+      "note": "⚠️ 重构说明：新增 processString() 方法用于处理字符串中的 Templater 表达式。此方法专门用于解析单个字符串（如默认值中的 `<% tp.date.now() %>`），无需构造完整的 Template 对象。UI 层应使用此方法而不是手动构造临时 Template 对象调用 processTemplate()。",
+      "createdAt": "2025-12-07T16:02:27.467",
+      "updatedAt": "2025-12-07T16:02:27.467"
+    }
+  ],
+  "src/engine/TemplateEngine.ts": [
+    {
+      "id": "notebook-1765094570291_iuax5lk1j",
+      "filePath": "src/engine/TemplateEngine.ts",
+      "note": "⚠️ 新增导出函数：processTemplaterString(app, content) 提供便捷的字符串 Templater 表达式解析。外部模块可直接导入此函数而无需手动实例化 ObsidianTemplaterAdapter。",
+      "createdAt": "2025-12-07T16:02:50.291",
+      "updatedAt": "2025-12-07T16:02:50.291"
+    }
+  ],
+  "src/ui/frontmatter-manager-modal.ts": [
+    {
+      "id": "notebook-1765094580731_6xknxz0ma",
+      "filePath": "src/ui/frontmatter-manager-modal.ts",
+      "note": "⚠️ 重构记录：parseTemplaterDefaults() 方法已简化，不再手动构造临时 Template 对象。现在直接调用 adapter.processString(defaultValue) 来解析 Templater 表达式。此更改消除了代码重复，更符合职责分离原则。",
+      "createdAt": "2025-12-07T16:03:00.731",
+      "updatedAt": "2025-12-07T16:03:00.731"
+    }
+  ],
+  "src/ui/ui-utils.ts": [
+    {
+      "id": "notebook-1765095312701_av6tgrvxi",
+      "filePath": "src/ui/ui-utils.ts",
+      "note": "✅ 新增 renderPresetDescription 工具函数 - 统一生成预设 ID 徽标和描述文本的 DocumentFragment。支持自定义分隔符、CSS 类名和是否包含描述文本。被 UniversalPresetSelectorModal 使用，消除了重复的 buildPresetDesc 方法。",
+      "createdAt": "2025-12-07T16:15:12.701",
+      "updatedAt": "2025-12-07T16:15:12.701"
+    },
+    {
+      "id": "notebook-1765095023157_pwugzuyg8",
+      "filePath": "src/ui/ui-utils.ts",
+      "note": "✅ 新增 createMultiSelectCheckbox 工具函数 - 复选框组件的通用创建方法，支持自定义 label 样式、is-checked 样式切换、label 关联等功能。被 FrontmatterFormView 和 FieldConfigForm 使用，消除了重复代码。",
+      "createdAt": "2025-12-07T16:10:23.157",
+      "updatedAt": "2025-12-07T16:10:23.157"
+    }
+  ],
+  "src/utils/ui.ts": [
+    {
+      "id": "notebook-1765097401795_7qcxqsbl0",
+      "filePath": "src/utils/ui.ts",
+      "note": "✅ copyToClipboard 函数已从 src/actions/insert-template.ts 提取到此通用工具文件，包含 navigator.clipboard 和 document.execCommand 降级处理逻辑",
+      "createdAt": "2025-12-07T16:50:01.795",
+      "updatedAt": "2025-12-07T16:50:01.795"
+    }
+  ],
+  "src/ui/simple-confirm-modal.ts": [
+    {
+      "id": "notebook-1765212740754_3y3y6khme",
+      "filePath": "src/ui/simple-confirm-modal.ts",
+      "note": "✅ 已优化：使用 ButtonComponent 替代手动创建的 button 元素，确保按钮样式与主题匹配",
+      "createdAt": "2025-12-09T00:52:20.754",
+      "updatedAt": "2025-12-09T00:52:20.754"
+    }
+  ],
+  "src/ui/field-config/detail-panel-view.ts": [
+    {
+      "id": "notebook-1765212740755_4cemg3a4i",
+      "filePath": "src/ui/field-config/detail-panel-view.ts",
+      "note": "✅ 已优化：使用 ButtonComponent 创建返回和删除按钮，移除了手动事件监听和 clickable-icon 类",
+      "createdAt": "2025-12-09T00:52:20.755",
+      "updatedAt": "2025-12-09T00:52:20.755"
+    }
+  ],
+  "src/ui/note-architect-setting-tab.ts": [
+    {
+      "id": "notebook-1765212740756_7y5hbm05a",
+      "filePath": "src/ui/note-architect-setting-tab.ts",
+      "note": "✅ 已优化：验证按钮使用 ButtonComponent 和 setCta() 方法，保持与 withBusy 工具的兼容性",
+      "createdAt": "2025-12-09T00:52:20.756",
+      "updatedAt": "2025-12-09T00:52:20.756"
+    }
+  ],
+  "src/ui/field-config-modal.ts": [
+    {
+      "id": "notebook-1765212740757_vatfhudif",
+      "filePath": "src/ui/field-config-modal.ts",
+      "note": "✅ 已优化：底部操作按钮使用 ButtonComponent，保存按钮使用 setCta() 设置主要样式",
+      "createdAt": "2025-12-09T00:52:20.757",
+      "updatedAt": "2025-12-09T00:52:20.757"
+    }
   ]
 }

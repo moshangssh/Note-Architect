@@ -1,145 +1,135 @@
-好的，开发思路非常清晰。核心策略是**“组件通用化”**和**“流程分步化”**。
+仔细审查了代码库，发现大部分核心逻辑（如 Vault 操作、Frontmatter 解析、命令注册、模态框基类等）都正确使用了 Obsidian API。
 
-我们将不再让 `TemplatePresetBindingModal` 仅仅服务于绑定功能，而是将其 UI 逻辑抽象出来，或者创建一个通用的**“预设选择器”**，让“绑定预设”和“更新 Frontmatter”这两个功能都调用同一个 UI 组件。
+然而，在 **UI 组件构建（特别是表单控件和交互元素）** 方面，代码大量使用了底层的 `HTMLElement.createEl` 或 `createDiv` 进行手动 DOM 构建，而没有利用 Obsidian 提供的封装良好的 **Component API**（如 `TextComponent`, `ButtonComponent`, `SearchComponent` 等）。
 
-以下是为您规划的开发思路和关键代码结构：
+以下是具体可以优化为 Obsidian API 的地方：
 
-### 核心思路
+### 1. 搜索框组件 (Search Input)
+**文件**: `src/ui/template-selector/template-search-view.ts`
 
-1.  **UI 抽象 (The View)**：创建一个通用的 `PresetSelectorModal`（或者重构现有的 `TemplatePresetBindingModal` 使其更通用）。该 Modal 只负责展示列表、搜索、并返回用户点击的预设。它不应该包含具体的“绑定”或“更新”业务逻辑。
-2.  **业务解耦 (The Controller)**：
-    *   **绑定场景**：用户选择 -> 调用 `updateFrontmatter` 写入文件配置。
-    *   **更新场景**（您的新需求）：用户选择 -> 关闭选择器 -> 打开 `FrontmatterManagerModal`（填表界面）。
-
----
-
-### 步骤 1：创建/重构通用的预设选择器 Modal
-
-我们需要一个配置性很强的 Modal。你可以新建一个 `UniversalPresetSelectorModal`，或者改造现有的 Modal。
-
-**关键特性配置：**
-*   **标题/副标题**：可定制（"绑定预设" vs "选择预设以更新"）。
-*   **当前状态**：传入 `currentPresetId`，用于在列表中标记 "（当前）" 徽标。
-*   **操作回调**：`onSelect(preset)`。
-*   **清除/跳过选项**：可选配置（绑定场景需要"解绑"，更新场景可能不需要）。
-
-**关键代码结构 (`src/ui/universal-preset-selector-modal.ts`)：**
-
+**现状**:
+手动创建了 `input` 元素，并手动实现了“清空按钮”的逻辑和样式。
 ```typescript
-interface PresetSelectorOptions {
-    title: string;
-    subtitle?: string;
-    presets: FrontmatterPreset[];
-    currentPresetId?: string; // 用于高亮当前选中的（如果有）
-    
-    // 核心回调：用户选中某一项时触发
-    onSelect: (preset: FrontmatterPreset) => void;
-    
-    // 可选：是否显示“不使用预设/解绑”的顶部选项
-    allowClear?: boolean; 
-    onClear?: () => void;
-}
-
-export class UniversalPresetSelectorModal extends Modal {
-    // ...省略基础属性初始化...
-
-    onOpen() {
-        // 1. 渲染通用的头部 (复用你喜欢的 UI 样式)
-        this.renderHeader(this.options.title, this.options.subtitle);
-        
-        // 2. 渲染搜索框 (复用现有的搜索逻辑)
-        this.renderSearchInput();
-        
-        // 3. 渲染列表容器
-        this.renderList();
-    }
-
-    private renderList() {
-        // ...遍历 this.filteredPresets...
-        
-        for (const preset of this.filteredPresets) {
-            const isCurrent = preset.id === this.options.currentPresetId;
-            
-            // 复用之前的 Setting UI 构建逻辑
-            const setting = new Setting(this.listContainer)
-                .setName(preset.name)
-                .setDesc(this.buildPresetDesc(preset)); // 复用之前的描述构建
-
-            if (isCurrent) {
-                // 渲染 "（当前）" 徽标
-                // 按钮显示 "当前" 并禁用
-            } else {
-                // 渲染 "选择" 按钮
-                setting.addButton(btn => btn
-                    .setButtonText("选择")
-                    .setCta()
-                    .onClick(() => {
-                        this.close(); // 先关闭自己
-                        this.options.onSelect(preset); // 触发回调，进入下一步
-                    })
-                );
-            }
-        }
-    }
-}
+// 当前代码
+this.inputEl = this.containerEl.createEl("input", { ... });
+this.clearButtonEl = this.containerEl.createEl("button", { ... });
+// 手动绑定 input 和 click 事件来处理清空逻辑
 ```
 
-### 步骤 2：修改业务流程入口 (`UiRegistrar.ts`)
-
-在 `handleUpdateFrontmatterCommand` 中，我们将流程改为两步走。
-
-**关键代码逻辑 (`src/core/UiRegistrar.ts`)：**
-
+**建议**:
+使用 `SearchComponent`。它自动包含搜索图标、输入框和有内容时才显示的清空按钮，并且自动处理了不同主题下的样式。
 ```typescript
-private handleUpdateFrontmatterCommand(checking: boolean): boolean {
-    // ... 省略前置检查代码 ...
+import { SearchComponent } from "obsidian";
 
-    if (checking) return true;
-
-    const presets = this.presetManager.getPresets();
-    const lastUsedId = this.noteArchitect.settings.lastUsedPresetForUpdate;
-
-    // --- 第一步：打开选择器 ---
-    new UniversalPresetSelectorModal(this.plugin.app, {
-        title: "选择预设",
-        subtitle: "选择一个预设以更新当前笔记的 Frontmatter",
-        presets: presets,
-        
-        // 传入上次使用的 ID，方便用户看到上次选了啥
-        currentPresetId: lastUsedId, 
-
-        // --- 第二步：用户选择后的回调 ---
-        onSelect: (selectedPreset) => {
-            // 打开填表界面 (FrontmatterManagerModal)
-            // 注意：这里 presets 数组只传用户选中的这就行，或者传全部但默认选中它
-            FrontmatterManagerModal.forFrontmatterUpdate(
-                this.plugin.app, 
-                this.noteArchitect, 
-                { 
-                    presets: [selectedPreset], // 重点：只传选中的这个，简化 Modal 逻辑
-                    // 或者如果你想保留在 Modal 里切换预设的能力，可以传全部，并指定 activePreset
-                }
-            ).open();
-        }
-    }).open();
-
-    return true;
-}
+// 替换为
+const search = new SearchComponent(this.containerEl)
+    .setPlaceholder(this.options.placeholder ?? "搜索模板...")
+    .onChange((value) => {
+        this.options.onInput(value);
+    });
+// SearchComponent 自带清空按钮逻辑
 ```
 
-### 步骤 3：微调填表界面 (`FrontmatterManagerModal`)
+### 2. 表单输入控件 (Form Inputs)
+**文件**:
+*   `src/ui/field-config/field-config-form.ts`
+*   `src/ui/create-preset-modal.ts`
+*   `src/ui/preset-item-ui.ts`
 
-由于我们在第一步已经明确了用户想要哪个预设，`FrontmatterManagerModal` 可以简化。
+**现状**:
+大量使用了 `createEl('input')`、`createEl('select')` 和 `createEl('textarea')`。虽然添加了 `note-architect-input-base` 等 CSS 类来模仿原生外观，但不如直接使用组件稳定。
 
-**优化思路：**
+```typescript
+// 当前代码示例 (field-config-form.ts)
+const input = row.createEl("input", {
+    type: "text",
+    value: this.config.field.key,
+    cls: "note-architect-input-base..."
+});
+```
 
-*   **构造函数**：如果传入的 `presets` 数组只有一个（来自 Step 2 的回调），那么 UI 上原本那个 "选择预设" 的下拉框 (`presetSwitcherEl`) 就可以自动隐藏，或者显示为只读文本（"当前预设：XXX"）。
-*   **逻辑保持**：不需要大改核心逻辑，它依然负责解析默认值、渲染表单、合并/覆盖 Frontmatter。
+**建议**:
+使用 `TextComponent`, `TextAreaComponent`, `DropdownComponent`。
+*   **TextComponent**: 用于单行文本。
+*   **TextAreaComponent**: 用于描述字段。
+*   **DropdownComponent**: 用于类型选择。
+
+```typescript
+import { TextComponent } from "obsidian";
+
+// 替换为
+const inputComp = new TextComponent(row)
+    .setValue(this.config.field.key)
+    .setPlaceholder("例如: status")
+    .onChange(value => {
+        this.config.field.key = value.trim();
+        this.notifyFieldChange();
+    });
+// 可以通过 inputComp.inputEl 添加额外的 CSS 类
+inputComp.inputEl.addClass("note-architect-field-input");
+```
+
+### 3. 按钮组件 (Buttons)
+**文件**:
+*   `src/ui/field-config/field-config-form.ts` (添加选项按钮)
+*   `src/ui/create-preset-modal.ts` (创建/取消按钮)
+*   `src/ui/universal-preset-selector-modal.ts` (自定义按钮)
+
+**现状**:
+手动创建 `button` 元素并管理 `disabled` 状态和样式类。
+```typescript
+// 当前代码
+this.submitButton = actionsContainer.createEl('button', {
+    text: '✅ 创建预设',
+    cls: 'mod-cta'
+});
+```
+
+**建议**:
+使用 `ButtonComponent`。它支持链式调用设置样式（`setCta()`, `setWarning()`），并能更好地处理图标和回调。
+```typescript
+import { ButtonComponent } from "obsidian";
+
+// 替换为
+new ButtonComponent(actionsContainer)
+    .setButtonText("✅ 创建预设")
+    .setCta() // 自动应用 mod-cta 样式
+    .setDisabled(true)
+    .onClick(() => this.handleCreate());
+```
+
+### 4. 开关组件 (Toggles)
+**文件**: `src/ui/field-config/field-config-form.ts`
+
+**现状**:
+在 `renderDateAutoFillControls` 方法中，手动创建了 `type: 'checkbox'` 的 input 来模拟开关行为。
+
+**建议**:
+如果是用作设置开关（如“自动填入当前时间”），使用 `ToggleComponent` 更符合 Obsidian 的 UI 规范。如果是列表中的多选框，手动创建或使用 Helper 是可以的，因为 Obsidian 没有公开纯 Checkbox 组件（`ToggleComponent` 样式是滑块开关）。
+
+### 5. 模态框内的设置项布局 (Setting)
+**文件**: `src/ui/rename-preset-modal.ts` (已使用，良好) vs `src/ui/create-preset-modal.ts` (未使用)
+
+**现状**:
+`RenamePresetModal` 正确使用了 `new Setting()` 来构建布局。但 `CreatePresetModal` 是手动构建 DOM 结构 (`div.setting-item-description`, label 等)。
+
+**建议**:
+在 `CreatePresetModal` 中也统一使用 `Setting` 类来构建 UI，即使是在 Modal 中。这样可以保证标签、描述文字和控件的对齐方式与 Obsidian 原生设置页一致。
+
+```typescript
+import { Setting } from "obsidian";
+
+// 替换 CreatePresetModal 中的手动构建
+new Setting(contentEl)
+    .setName("预设名称")
+    .setDesc("...")
+    .addText(text => text
+        .setPlaceholder("...")
+        .onChange(...)
+    );
+```
 
 ### 总结
+代码库在逻辑层面对 Obsidian API (Vault, MetadataCache, TFile 等) 的使用非常规范。
 
-1.  **UI 复用**：通过 `UniversalPresetSelectorModal` 把 "漂亮的列表 UI" 剥离出来。
-2.  **绑定流程**：`UiRegistrar` -> `UniversalPresetSelectorModal` (onSelect 执行写入文件配置)。
-3.  **更新流程**：`UiRegistrar` -> `UniversalPresetSelectorModal` (onSelect 打开填表 Modal)。
-
-这样既满足了 UI 统一，又完美实现了您期望的交互流程。
+**主要的改进点在于 UI 层**：目前是“手动造轮子”来模仿 Obsidian 的 UI 元素。虽然通过 `styles.css` 实现了视觉上的近似，但使用 `obsidian` 模块导出的 `Component` 类（TextComponent, ButtonComponent, SearchComponent 等）能减少 DOM 操作代码量，并确保在不同主题（Theme）下的样式兼容性更好。
