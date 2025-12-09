@@ -9,6 +9,7 @@ import type {
 import { prepareTemplateWithUserInput } from "@engine/TemplateEngine";
 import { updateNoteFrontmatter } from "@utils/frontmatter-editor";
 import { notifySuccess, notifyWarning } from "@utils/notify";
+import { copyToClipboard } from "@utils/ui";
 
 /**
  * 执行模板插入操作
@@ -43,12 +44,38 @@ export async function executeTemplateInsertion(
   let templateBodyInserted = false;
 
   try {
+    // 检查插入前的光标状态：是否在文件开头且未选中文本
+    const cursor = editor.getCursor();
+    const isNewFrontmatter = !preparation.noteMetadata.position;
+    const isCursorAtStart =
+      !editor.somethingSelected() && cursor.line === 0 && cursor.ch === 0;
+
     // 先更新 frontmatter（始终在文件顶部，避免后续插入导致行号错位）
     updateNoteFrontmatter(
       editor,
       preparation.mergedFrontmatter,
       preparation.noteMetadata.position
     );
+
+    // [修复] 如果是全新插入 Frontmatter 且光标原先在开头，
+    // updateNoteFrontmatter 后光标可能仍停留在 0,0 (Frontmatter 之前)。
+    // 我们需要手动将光标移动到 Frontmatter 之后，确保正文插入在正确位置。
+    if (isNewFrontmatter && isCursorAtStart) {
+      const lastLine = editor.lineCount();
+      let fmEndLine = 0;
+      // 扫描找到 Frontmatter 的结束标记 '---'
+      // 从第1行开始扫描（第0行肯定是 '---'）
+      for (let i = 1; i < Math.min(lastLine, 100); i++) {
+        if (editor.getLine(i).trim() === "---") {
+          fmEndLine = i;
+          break;
+        }
+      }
+      // updateNoteFrontmatter 会在 '---' 后添加 '\n\n'，所以我们跳过 '---' 行和随后的空行
+      // 目标行是 fmEndLine + 2
+      const targetLine = Math.min(fmEndLine + 2, lastLine);
+      editor.setCursor({ line: targetLine, ch: 0 });
+    }
 
     // 再插入模板正文
     if (preparation.hasTemplateBody) {
@@ -180,31 +207,4 @@ function stringifyFrontmatterAsYaml(
   });
   const normalizedYaml = yamlText.endsWith("\n") ? yamlText : `${yamlText}\n`;
   return `---${normalizedYaml}---`;
-}
-
-/**
- * 复制文本到剪贴板
- * @param text 要复制的文本
- */
-async function copyToClipboard(text: string): Promise<void> {
-  try {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      await navigator.clipboard.writeText(text);
-    } else {
-      // 降级方案：使用临时 textarea 元素
-      const textarea = document.createElement("textarea");
-      textarea.value = text;
-      textarea.style.position = "fixed";
-      textarea.style.left = "-9999px";
-      textarea.style.top = "-9999px";
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textarea);
-    }
-  } catch (error) {
-    console.warn("Note Architect: 复制到剪贴板失败", error);
-    // 即使复制失败也不抛出错误，以免影响主要流程
-  }
 }

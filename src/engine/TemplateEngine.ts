@@ -1,97 +1,125 @@
-import { App } from 'obsidian';
-import { parseFrontmatter, getNoteMetadata } from '@utils/frontmatter-editor';
-import type NoteArchitect from '@core/plugin';
+import { App } from "obsidian";
+import { parseFrontmatter, getNoteMetadata } from "@utils/frontmatter-editor";
+import type NoteArchitect from "@core/plugin";
 import type {
-	FrontmatterPreset,
-	ParsedTemplateContent,
-	Template,
-	TemplateProcessingResult,
-	TemplatePreparationResult
-} from '@types';
-import type { TemplaterPort } from './TemplaterPort';
-import { ObsidianTemplaterAdapter } from './ObsidianTemplaterAdapter';
-import { mergeFrontmatterWithUserInput } from './merge-pipeline';
+  FrontmatterPreset,
+  ParsedTemplateContent,
+  Template,
+  TemplateProcessingResult,
+  TemplatePreparationResult,
+} from "@types";
+import type { TemplaterPort } from "./TemplaterPort";
+import { ObsidianTemplaterAdapter } from "./ObsidianTemplaterAdapter";
+import { mergeFrontmatterWithUserInput } from "./merge-pipeline";
 
-export async function processTemplateContent(app: App, plugin: NoteArchitect, template: Template): Promise<TemplateProcessingResult> {
-	let processedContent = template.content;
-	let usedTemplater = false;
-	let error: string | undefined;
+export async function processTemplateContent(
+  app: App,
+  plugin: NoteArchitect,
+  template: Template
+): Promise<TemplateProcessingResult> {
+  let processedContent = template.content;
+  let usedTemplater = false;
+  let error: string | undefined;
 
-	if (plugin.settings.enableTemplaterIntegration) {
-		const templater: TemplaterPort = new ObsidianTemplaterAdapter(app);
-		if (templater.isAvailable()) {
-			try {
-				processedContent = await templater.processTemplate(template);
-				usedTemplater = true;
-			} catch (templaterError) {
-				console.warn('Note Architect: Templater 处理失败，使用原始模板内容', templaterError);
-				error = 'Templater 处理失败，使用原始模板内容';
-			}
-		}
-	}
+  if (plugin.settings.enableTemplaterIntegration) {
+    const templater: TemplaterPort = new ObsidianTemplaterAdapter(app);
+    if (templater.isAvailable()) {
+      try {
+        processedContent = await templater.processTemplate(template);
+        usedTemplater = true;
+      } catch (templaterError) {
+        console.warn(
+          "Note Architect: Templater 处理失败，使用原始模板内容",
+          templaterError
+        );
+        error = "Templater 处理失败，使用原始模板内容";
+      }
+    }
+  }
 
-	return { content: processedContent, usedTemplater, error };
+  return { content: processedContent, usedTemplater, error };
 }
 
 export function parseTemplateContent(content: string): ParsedTemplateContent {
-	try {
-		const parsed = parseFrontmatter(content);
+  try {
+    const parsed = parseFrontmatter(content);
 
-		if (parsed.hasFrontmatter) {
-			return {
-				frontmatter: parsed.frontmatter,
-				body: parsed.body.trim(),
-			};
-		}
+    if (parsed.hasFrontmatter) {
+      return {
+        frontmatter: parsed.frontmatter,
+        body: parsed.body.trim(),
+      };
+    }
 
-		return {
-			frontmatter: {},
-			body: parsed.body,
-		};
-	} catch (error) {
-		console.warn('Note Architect: Frontmatter 解析失败', error);
-		return { frontmatter: {}, body: content };
-	}
+    return {
+      frontmatter: {},
+      body: parsed.body,
+    };
+  } catch (error) {
+    console.warn("Note Architect: Frontmatter 解析失败", error);
+    return { frontmatter: {}, body: content };
+  }
 }
 
 export async function prepareTemplateWithUserInput(
-	app: App,
-	plugin: NoteArchitect,
-	template: Template,
-	preset: FrontmatterPreset,
-	userFrontmatter: Record<string, unknown>,
+  app: App,
+  plugin: NoteArchitect,
+  template: Template,
+  preset: FrontmatterPreset,
+  userFrontmatter: Record<string, unknown>
 ): Promise<TemplatePreparationResult> {
-	const {
-		content: processedContent,
-		usedTemplater,
-		error: templaterError,
-	} = await processTemplateContent(app, plugin, template);
+  const {
+    content: processedContent,
+    usedTemplater,
+    error: templaterError,
+  } = await processTemplateContent(app, plugin, template);
 
-	const { frontmatter: templateFM, body: templateBody } = parseTemplateContent(processedContent);
-	const mergedFrontmatter = await mergeFrontmatterWithUserInput(
-		app,
-		plugin,
-		preset,
-		templateFM,
-		userFrontmatter,
-	);
+  const { frontmatter: templateFM, body: templateBody } =
+    parseTemplateContent(processedContent);
+  const mergedFrontmatter = await mergeFrontmatterWithUserInput(
+    app,
+    plugin,
+    preset,
+    templateFM,
+    userFrontmatter
+  );
 
-	const noteMetadata = getNoteMetadata(app);
-	const trimmedBody = templateBody.trim();
-	const hasTemplateBody = trimmedBody.length > 0;
+  const noteMetadata = getNoteMetadata(app);
+  const trimmedBody = templateBody.trim();
+  const hasTemplateBody = trimmedBody.length > 0;
 
-	return {
-		usedTemplater,
-		templaterError,
-		mergedFrontmatter,
-		templateBody,
-		hasTemplateBody,
-		noteMetadata,
-		mergeCount: Object.keys(mergedFrontmatter).length,
-	};
+  return {
+    usedTemplater,
+    templaterError,
+    mergedFrontmatter,
+    templateBody,
+    hasTemplateBody,
+    noteMetadata,
+    mergeCount: Object.keys(mergedFrontmatter).length,
+  };
+}
+
+/**
+ * 处理字符串中的 Templater 表达式
+ * @param app Obsidian App 实例
+ * @param content 包含 Templater 表达式的字符串
+ * @returns 解析后的字符串
+ */
+export async function processTemplaterString(
+  app: App,
+  content: string
+): Promise<string> {
+  const adapter = new ObsidianTemplaterAdapter(app);
+  if (!adapter.isAvailable()) {
+    throw new Error("Templater 插件未启用");
+  }
+  return await adapter.processString(content);
 }
 
 export { mergeFrontmatterWithUserInput };
-export { convertFormDataToFrontmatter } from '@utils/frontmatter/convert';
-export { mergeFrontmatters } from '@utils/frontmatter/merge';
-export { getNoteMetadata, updateNoteFrontmatter } from '@utils/frontmatter-editor';
+export { convertFormDataToFrontmatter } from "@utils/frontmatter/convert";
+export { mergeFrontmatters } from "@utils/frontmatter/merge";
+export {
+  getNoteMetadata,
+  updateNoteFrontmatter,
+} from "@utils/frontmatter-editor";
