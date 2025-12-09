@@ -1,65 +1,64 @@
-import { App, Modal } from 'obsidian';
+import { App, ButtonComponent, Modal } from "obsidian";
 
 export interface SimpleConfirmModalOptions {
-	title: string;
-	message: string;
-	confirmText: string;
-	cancelText: string;
-	confirmClass?: string;
-	cancelClass?: string;
+  title: string;
+  message: string;
+  confirmText: string;
+  cancelText: string;
+  confirmClass?: string;
+  cancelClass?: string;
 }
 
 export class SimpleConfirmModal extends Modal {
-	private resolvePromise?: (result: boolean) => void;
-	private settled = false;
-	private readonly options: SimpleConfirmModalOptions;
+  private resolvePromise?: (result: boolean) => void;
+  private settled = false;
+  private readonly options: SimpleConfirmModalOptions;
 
-	constructor(app: App, options: SimpleConfirmModalOptions) {
-		super(app);
-		this.options = options;
-	}
+  constructor(app: App, options: SimpleConfirmModalOptions) {
+    super(app);
+    this.options = options;
+  }
 
-	openAndWait(): Promise<boolean> {
-		return new Promise<boolean>((resolve) => {
-			this.resolvePromise = resolve;
-			this.open();
-		});
-	}
+  openAndWait(): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      this.resolvePromise = resolve;
+      this.open();
+    });
+  }
 
-	onOpen(): void {
-		this.titleEl.setText(this.options.title);
-		const content = this.contentEl;
-		content.empty();
+  onOpen(): void {
+    this.titleEl.setText(this.options.title);
+    const content = this.contentEl;
+    content.empty();
 
-		content.createEl('p', { text: this.options.message });
+    content.createEl("p", { text: this.options.message });
 
-		const actions = content.createDiv('modal-button-container');
-		const confirmButton = actions.createEl('button', {
-			text: this.options.confirmText,
-			cls: this.options.confirmClass ?? 'mod-cta',
-		});
-		confirmButton.addEventListener('click', () => this.closeWith(true));
+    const actions = content.createDiv("modal-button-container");
 
-		const cancelButton = actions.createEl('button', {
-			text: this.options.cancelText,
-			cls: this.options.cancelClass,
-		});
-		cancelButton.addEventListener('click', () => this.closeWith(false));
-	}
+    new ButtonComponent(actions)
+      .setButtonText(this.options.confirmText)
+      .setClass(this.options.confirmClass ?? "mod-cta")
+      .onClick(() => this.closeWith(true));
 
-	onClose(): void {
-		this.contentEl.empty();
-		if (!this.settled) {
-			this.resolvePromise?.(false);
-		}
-	}
+    new ButtonComponent(actions)
+      .setButtonText(this.options.cancelText)
+      .setClass(this.options.cancelClass ?? "")
+      .onClick(() => this.closeWith(false));
+  }
 
-	private closeWith(result: boolean): void {
-		if (this.settled) {
-			return;
-		}
-		this.settled = true;
-		this.resolvePromise?.(result);
-		this.close();
-	}
+  onClose(): void {
+    this.contentEl.empty();
+    if (!this.settled) {
+      this.resolvePromise?.(false);
+    }
+  }
+
+  private closeWith(result: boolean): void {
+    if (this.settled) {
+      return;
+    }
+    this.settled = true;
+    this.resolvePromise?.(result);
+    this.close();
+  }
 }

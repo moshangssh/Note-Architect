@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Modal } from "obsidian";
+import { App, Editor, MarkdownView, Modal, prepareFuzzySearch } from "obsidian";
 import type NoteArchitect from "@core/plugin";
 import { TemplateManager } from "@templates";
 import { TemplateLoadStatus } from "@types";
@@ -98,18 +98,50 @@ export class TemplateSelectorModal extends Modal {
     }
 
     const normalizedQuery = query.toLowerCase().trim();
-    return this.templates
-      .filter((template) => {
-        const normalizedName = template.name.toLowerCase();
-        if (normalizedName.includes(normalizedQuery)) {
-          return true;
+    const fuzzySearch = prepareFuzzySearch(normalizedQuery);
+
+    // 使用数组存储模板及其搜索结果
+    const templatesWithScores: Array<{ template: Template; score: number }> = [];
+
+    for (const template of this.templates) {
+      // 首先尝试在模板名称中搜索
+      const nameResult = fuzzySearch(template.name);
+
+      if (nameResult) {
+        // 名称匹配，使用名称的匹配分数
+        templatesWithScores.push({
+          template,
+          score: nameResult.score,
+        });
+        continue;
+      }
+
+      // 如果名称不匹配且启用了内容搜索，则搜索内容
+      if (this.searchContentEnabled) {
+        const contentResult = fuzzySearch(template.content);
+        if (contentResult) {
+          // 内容匹配，使用内容的匹配分数
+          // 内容匹配的分数稍微降低一点，以便名称匹配优先
+          templatesWithScores.push({
+            template,
+            score: contentResult.score * 0.8,
+          });
         }
-        if (!this.searchContentEnabled) {
-          return false;
+      }
+    }
+
+    // 按分数降序排序，分数相同时按名称字母顺序排序
+    return templatesWithScores
+      .sort((a, b) => {
+        // 首先按分数降序排序
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) {
+          return scoreDiff;
         }
-        return template.content.toLowerCase().includes(normalizedQuery);
+        // 分数相同时，使用 Intl.Collator 进行中文友好的字母排序
+        return this.collator.compare(a.template.name, b.template.name);
       })
-      .sort((a, b) => this.collator.compare(a.name, b.name));
+      .map((item) => item.template);
   }
 
   private applySearchUpdate(query: string) {

@@ -1,6 +1,7 @@
-import { App, Modal, Setting, type ButtonComponent } from "obsidian";
+import { App, Modal, Setting, ButtonComponent } from "obsidian";
 import type { FrontmatterPreset } from "@types";
 import { runWithBusy } from "@utils/async-ui";
+import { renderPresetDescription } from "./ui-utils";
 
 /**
  * 自定义按钮配置
@@ -146,7 +147,7 @@ export class UniversalPresetSelectorModal extends Modal {
    */
   private renderSearchInput(): void {
     const searchContainer = this.contentEl.createDiv({
-      cls: "note-architect-search-wrapper search-input-container",
+      cls: "note-architect-search-container search-input-container",
     });
 
     const searchInput = searchContainer.createEl("input", {
@@ -216,13 +217,13 @@ export class UniversalPresetSelectorModal extends Modal {
 
       const setting = new Setting(this.listContainer);
       setting.setName(preset.name);
-      setting.setDesc(this.buildPresetDesc(preset));
+      setting.setDesc(renderPresetDescription(preset));
 
       if (isCurrent) {
         // 渲染"（当前）"徽标
         setting.nameEl.createSpan({
           text: "（当前）",
-          cls: "note-architect-badge-current",
+          cls: "note-architect-preset-badge-current",
         });
 
         // 禁用的"当前"按钮
@@ -334,17 +335,21 @@ export class UniversalPresetSelectorModal extends Modal {
 
     this.bottomButtonContainer.empty();
 
+    // 使用 ButtonComponent 替代手动创建按钮
     for (const customButton of this.rawOptions.customButtons) {
-      const btn = this.bottomButtonContainer.createEl("button", {
-        text: customButton.text,
-      });
-      btn.style.padding = "8px 16px";
+      const buttonComponent = new ButtonComponent(this.bottomButtonContainer)
+        .setButtonText(customButton.text);
 
+      // 应用样式变体
       if (customButton.variant === "cta") {
-        btn.classList.add("mod-cta");
+        buttonComponent.setCta();
       }
 
-      btn.addEventListener("click", async () => {
+      // 设置样式
+      buttonComponent.buttonEl.style.padding = "8px 16px";
+
+      // 处理点击事件
+      buttonComponent.onClick(async () => {
         if (this.isBusy) {
           return;
         }
@@ -353,7 +358,7 @@ export class UniversalPresetSelectorModal extends Modal {
           const result = customButton.onClick();
           if (result instanceof Promise) {
             this.isBusy = true;
-            await runWithBusy(btn, async () => await result, {
+            await runWithBusy(buttonComponent.buttonEl, async () => await result, {
               busyText: "处理中…",
               errorContext: "UniversalPresetSelectorModal.customButton",
             });
@@ -451,33 +456,5 @@ export class UniversalPresetSelectorModal extends Modal {
     } finally {
       this.isBusy = false;
     }
-  }
-
-  /**
-   * 构建预设描述（ID + 描述文本）
-   */
-  private buildPresetDesc(preset: FrontmatterPreset): DocumentFragment {
-    const fragment = document.createDocumentFragment();
-
-    // ID 徽标
-    const idEl = document.createElement("span");
-    idEl.textContent = preset.id;
-    idEl.classList.add("note-architect-id-code");
-    fragment.append(idEl);
-
-    // 描述文本
-    if (preset.description) {
-      const separatorEl = document.createElement("span");
-      separatorEl.textContent = " ｜ ";
-      separatorEl.classList.add("note-architect-desc-separator");
-      fragment.append(separatorEl);
-
-      const descEl = document.createElement("span");
-      descEl.textContent = preset.description;
-      descEl.classList.add("note-architect-desc-text");
-      fragment.append(descEl);
-    }
-
-    return fragment;
   }
 }

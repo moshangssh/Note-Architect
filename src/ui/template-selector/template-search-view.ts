@@ -1,3 +1,5 @@
+import { SearchComponent } from "obsidian";
+
 interface TemplateSearchViewOptions {
   onInput: (value: string) => void;
   onKeyDown: (event: KeyboardEvent) => void;
@@ -10,14 +12,15 @@ interface TemplateSearchViewOptions {
 
 /**
  * 负责渲染模板搜索输入框及其交互逻辑
+ * 使用 Obsidian SearchComponent 提供原生搜索体验
  */
+
 export class TemplateSearchView {
   private readonly options: TemplateSearchViewOptions;
   private readonly parentEl: HTMLElement;
-  private containerEl: HTMLElement | null = null;
-  private inputEl: HTMLInputElement | null = null;
-  private clearButtonEl: HTMLButtonElement | null = null;
+  private searchComponent: SearchComponent | null = null;
   private optionsContainerEl: HTMLElement | null = null;
+
   private contentSearchCheckboxEl: HTMLInputElement | null = null;
 
   constructor(parentEl: HTMLElement, options: TemplateSearchViewOptions) {
@@ -25,27 +28,24 @@ export class TemplateSearchView {
     this.options = options;
   }
   mount() {
-    this.containerEl = this.parentEl.createDiv({
-      cls: "note-architect-search-container search-input-container",
-    });
+    // 使用 Obsidian 原生 SearchComponent，直接挂载到父元素
+    this.searchComponent = new SearchComponent(this.parentEl);
+    // SearchComponent 默认带有 search-input-container 类，这里添加自定义类
+    this.searchComponent.containerEl.addClass(
+      "note-architect-search-container"
+    );
 
-    this.inputEl = this.containerEl.createEl("input", {
-      type: "text",
-      placeholder: this.options.placeholder ?? "搜索模板...",
-      cls: "note-architect-input-base note-architect-search-input",
-    });
+    this.searchComponent
+      .setPlaceholder(this.options.placeholder ?? "搜索模板...")
+      .onChange((value) => {
+        this.options.onInput(value);
+      });
 
-    this.inputEl.addEventListener("input", this.handleInput);
-    this.inputEl.addEventListener("keydown", this.handleKeyDown);
-
-    this.clearButtonEl = this.containerEl.createEl("button", {
-      type: "button",
-      text: "×",
-      cls: "note-architect-search-clear",
-    });
-    this.clearButtonEl.title = "清空搜索";
-    this.clearButtonEl.setAttribute("aria-label", "清空搜索");
-    this.clearButtonEl.addEventListener("click", this.handleClear);
+    // 添加自定义键盘事件处理（SearchComponent 不提供此功能）
+    this.searchComponent.inputEl.addEventListener(
+      "keydown",
+      this.handleKeyDown
+    );
 
     if (this.options.onContentSearchChange) {
       this.optionsContainerEl = this.parentEl.createDiv(
@@ -77,49 +77,39 @@ export class TemplateSearchView {
 
     if (this.options.initialQuery) {
       this.setQuery(this.options.initialQuery, false);
-    } else {
-      this.updateClearButtonVisibility("");
     }
   }
 
   unmount() {
-    if (this.inputEl) {
-      this.inputEl.removeEventListener("input", this.handleInput);
-      this.inputEl.removeEventListener("keydown", this.handleKeyDown);
-    }
-    this.clearButtonEl?.removeEventListener("click", this.handleClear);
+    // 移除键盘事件监听
+    this.searchComponent?.inputEl.removeEventListener(
+      "keydown",
+      this.handleKeyDown
+    );
     this.contentSearchCheckboxEl?.removeEventListener(
       "change",
       this.handleContentSearchToggle
     );
 
-    this.containerEl?.empty();
+    // 清理 SearchComponent 容器
+    this.searchComponent?.containerEl.empty();
     this.optionsContainerEl?.remove();
-    this.containerEl = null;
-    this.inputEl = null;
-    this.clearButtonEl = null;
+    this.searchComponent = null;
     this.optionsContainerEl = null;
     this.contentSearchCheckboxEl = null;
   }
 
   focus() {
-    this.inputEl?.focus();
+    this.searchComponent?.inputEl.focus();
   }
 
   setQuery(value: string, trigger = true) {
-    if (!this.inputEl) return;
-    this.inputEl.value = value;
-    this.updateClearButtonVisibility(value);
+    if (!this.searchComponent) return;
+    this.searchComponent.setValue(value);
     if (trigger) {
       this.options.onInput(value);
     }
   }
-
-  private handleInput = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    this.updateClearButtonVisibility(target.value);
-    this.options.onInput(target.value);
-  };
 
   private handleKeyDown = (event: KeyboardEvent) => {
     this.options.onKeyDown(event);
@@ -135,9 +125,4 @@ export class TemplateSearchView {
     if (!this.contentSearchCheckboxEl) return;
     this.options.onContentSearchChange?.(this.contentSearchCheckboxEl.checked);
   };
-
-  private updateClearButtonVisibility(value: string) {
-    if (!this.clearButtonEl) return;
-    this.clearButtonEl.style.display = value.trim() ? "block" : "none";
-  }
 }

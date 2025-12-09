@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, ButtonComponent, PluginSettingTab, Setting } from "obsidian";
 import type NoteArchitect from "@core/plugin";
 import { SettingsManager } from "@settings";
 import { PresetManager } from "@presets";
@@ -308,11 +308,11 @@ export class NoteArchitectSettingTab extends PluginSettingTab {
         }
 
         const buttonContainer = parentElement.createDiv("mod-cta");
-        const verifyButton = buttonContainer.createEl("button", {
-          text: "验证路径",
-          cls: "mod-cta",
-          type: "button",
-        });
+        const verifyBtnComponent = new ButtonComponent(buttonContainer)
+          .setButtonText("验证路径")
+          .setCta();
+
+        const verifyButton = verifyBtnComponent.buttonEl;
 
         withBusy(
           verifyButton,

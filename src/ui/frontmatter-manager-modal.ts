@@ -467,6 +467,7 @@ export class FrontmatterManagerModal extends Modal {
     let templater: {
       isAvailable(): boolean;
       processTemplate: (template: Template) => Promise<string>;
+      processString: (content: string) => Promise<string>;
     } | null = null;
 
     const ensureTemplater = async () => {
@@ -525,13 +526,7 @@ export class FrontmatterManagerModal extends Modal {
       try {
         const adapter = await ensureTemplater();
         if (adapter?.isAvailable()) {
-          const tempTemplate = {
-            id: "temp-default",
-            name: "temp-default",
-            content: defaultValue,
-            path: "", // 空字符串表示没有模板文件路径
-          };
-          const resolvedValue = await adapter.processTemplate(tempTemplate);
+          const resolvedValue = await adapter.processString(defaultValue);
           resolvedDefaults.set(field.key, resolvedValue);
         } else {
           templaterDefaultsSkipped.add(field.key);

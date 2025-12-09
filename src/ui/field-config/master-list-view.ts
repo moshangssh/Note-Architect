@@ -1,7 +1,7 @@
 import type { FrontmatterField } from "@types";
 import { FieldItem } from "./field-item";
 import { DomEventManager } from "@ui/dom-event-manager";
-import { setIcon } from "obsidian";
+import { setIcon, ButtonComponent } from "obsidian";
 
 /**
  * MasterListView 配置项
@@ -27,7 +27,7 @@ export class MasterListView {
   private readonly fieldItems = new Map<number, FieldItem>();
   private currentFields: FrontmatterField[] = [];
   private draggedIndex: number | null = null;
-  private addButtonEl?: HTMLButtonElement;
+  private addButtonEl?: ButtonComponent;
   private pendingFocusIndex: number | null = null;
   private currentSelectedIndex: number | null = null;
   private pendingFocusAttempts = 0;
@@ -67,14 +67,13 @@ export class MasterListView {
     );
     headerContent.createEl("h3", { text: "字段列表" });
 
-    const addBtn = header.createEl("button", {
-      cls: "clickable-icon",
-      attr: { "aria-label": "添加字段" },
-    });
-    setIcon(addBtn, "plus");
-    this.eventManager.add(addBtn, "click", () => {
-      this.config.onAddField?.();
-    });
+    const addBtn = new ButtonComponent(header)
+      .setClass("clickable-icon")
+      .setTooltip("添加字段")
+      .onClick(() => {
+        this.config.onAddField?.();
+      });
+    setIcon(addBtn.buttonEl, "plus");
     this.addButtonEl = addBtn;
 
     const listEl = this.containerEl.createDiv(
@@ -165,7 +164,7 @@ export class MasterListView {
       return;
     }
 
-    this.addButtonEl?.focus();
+    this.addButtonEl?.buttonEl.focus();
   }
 
   private handleDragStart(index: number): void {

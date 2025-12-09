@@ -1,5 +1,6 @@
 import type { FrontmatterPreset, FrontmatterField } from "@types";
 import { normalizeStringArray } from "@utils/data-transformer";
+import { createMultiSelectCheckbox } from "@ui/ui-utils";
 
 /**
  * 表单视图选项接口
@@ -226,33 +227,20 @@ export class FrontmatterFormView {
 
           if (field.options && field.options.length > 0) {
             field.options.forEach((option) => {
-              const normalizedOption = option.trim();
-              const optionContainer = multiSelectContainer.createDiv(
-                "note-architect-checkbox-container"
+              createMultiSelectCheckbox(
+                multiSelectContainer,
+                option,
+                currentSelection.includes(option.trim()),
+                () => {
+                  this.collectMultiSelectData();
+                  this.touchedFieldKeys.add(field.key);
+                  this.options.onMultiSelectChange?.(field.key);
+                },
+                {
+                  labelClass: "note-architect-checkbox-label",
+                  enableIsCheckedStyle: true,
+                }
               );
-
-              const checkbox = optionContainer.createEl("input", {
-                type: "checkbox",
-                value: normalizedOption,
-                cls: "note-architect-form-checkbox",
-              }) as HTMLInputElement;
-
-              checkbox.addEventListener("change", () => {
-                optionContainer.toggleClass("is-checked", checkbox.checked);
-                this.collectMultiSelectData();
-                this.touchedFieldKeys.add(field.key);
-                this.options.onMultiSelectChange?.(field.key);
-              });
-
-              if (currentSelection.includes(normalizedOption)) {
-                checkbox.checked = true;
-                optionContainer.toggleClass("is-checked", true);
-              }
-
-              optionContainer.createEl("label", {
-                text: normalizedOption,
-                cls: "note-architect-checkbox-label",
-              });
             });
           } else {
             multiSelectContainer.createEl("small", {
